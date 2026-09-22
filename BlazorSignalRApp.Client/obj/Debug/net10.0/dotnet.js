@@ -5,7 +5,7 @@ var e=!1;const t=async()=>WebAssembly.validate(new Uint8Array([0,97,115,109,1,0,
   "mainAssemblyName": "BlazorSignalRApp.Client",
   "applicationEnvironment": "Development",
   "resources": {
-    "hash": "sha256-b46cMVEdZ56dvTb5PkkfHkuq653a3yt18+Bn0JEgJxA=",
+    "hash": "sha256-JLiMt2DQyI3iUu6PxWdsHkWC5Fp98SFWqwd0c0VICXI=",
     "jsModuleNative": [
       {
         "name": "dotnet.native.b6l13xorvf.js"
@@ -1320,16 +1320,16 @@ var e=!1;const t=async()=>WebAssembly.validate(new Uint8Array([0,97,115,109,1,0,
       },
       {
         "virtualPath": "BlazorSignalRApp.Client.wasm",
-        "name": "BlazorSignalRApp.Client.jg7f82fcbz.wasm",
-        "hash": "sha256-fezOcQABC2m1VjLtKhNnLlopw0VyFAtXe/yyC9W55aU=",
+        "name": "BlazorSignalRApp.Client.5teuecb0d1.wasm",
+        "hash": "sha256-edSCPqL5cntxLiKR6TcgV9MlKCbU7Ics93PdAGYHoWo=",
         "cache": "force-cache"
       }
     ],
     "pdb": [
       {
         "virtualPath": "BlazorSignalRApp.Client.pdb",
-        "name": "BlazorSignalRApp.Client.ow6ude6o8o.pdb",
-        "hash": "sha256-eAMwXD4qpHFk2lVVFQl+L+WF7xgrxiqp5a93425EJpQ=",
+        "name": "BlazorSignalRApp.Client.tp8venrkaf.pdb",
+        "hash": "sha256-H4j0TfpFBNLBmD/FdCBU44l4/Gs//pxDlK6A2ZclerQ=",
         "cache": "force-cache"
       }
     ],
@@ -1346,8 +1346,8 @@ var e=!1;const t=async()=>WebAssembly.validate(new Uint8Array([0,97,115,109,1,0,
   },
   "debugLevel": -1,
   "appsettings": [
-    "../appsettings.json",
-    "../appsettings.Development.json"
+    "../appsettings.Development.json",
+    "../appsettings.json"
   ],
   "globalizationMode": "sharded",
   "extensions": {
