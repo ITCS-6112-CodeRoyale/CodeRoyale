@@ -45,7 +45,19 @@ string connectionString = builder.Configuration.GetConnectionString(ApplicationD
                           ?? throw new FormatException($"Connection string not found. Add to user secrets at \"ConnectionStrings:{ApplicationDbContextFactory.ConnectionStringName}\".");
 
 ServerVersion version = await ServerVersion.AutoDetectAsync(connectionString);
-builder.Services.AddDbContext<ApplicationDbContext>(options => options.UseMySql(connectionString, version));
+builder.Services.AddDbContext<ApplicationDbContext>(
+    opts => opts.UseMySql(connectionString, version)
+                .UseAsyncSeeding(async (db, _, token) =>
+                {
+                    CodeLanguage? js = await db.Set<CodeLanguage>().FirstOrDefaultAsync(x => x.LanguageCode == "js", token);
+                    if (js == null)
+                    {
+                        db.Set<CodeLanguage>().Add(new CodeLanguage { DisplayName = "JavaScript", LanguageCode = "js" });
+                        await db.SaveChangesAsync(token);
+                    }
+                })
+);
+
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
 builder.Services.AddIdentityCore<ApplicationUser>(options =>

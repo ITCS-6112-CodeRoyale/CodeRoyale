@@ -86,6 +86,197 @@ namespace CodeRoyale.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
+            modelBuilder.Entity("CodeRoyale.Data.CodeLanguage", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("varchar(32)");
+
+                    b.Property<string>("LanguageCode")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("varchar(10)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("language");
+                });
+
+            modelBuilder.Entity("CodeRoyale.Data.Questions.BlankEntryAnswer", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("BlankEntryQuestionId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CorrectRegex")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<byte>("Index")
+                        .HasColumnType("tinyint unsigned");
+
+                    b.Property<int>("RegexFlags")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BlankEntryQuestionId");
+
+                    b.ToTable("questions_blank_answers");
+                });
+
+            modelBuilder.Entity("CodeRoyale.Data.Questions.CodeEntryTest", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("CodeEntryQuestionId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("CodeEntryQuestionId1")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("varchar(256)");
+
+                    b.Property<int>("OrGroup")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CodeEntryQuestionId");
+
+                    b.HasIndex("CodeEntryQuestionId1");
+
+                    b.ToTable("questions_code_tests");
+
+                    b.HasDiscriminator<int>("Type");
+
+                    b.UseTphMappingStrategy();
+                });
+
+            modelBuilder.Entity("CodeRoyale.Data.Questions.MultipleChoiceAnswer", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<byte>("Index")
+                        .HasColumnType("tinyint unsigned");
+
+                    b.Property<bool>("IsCorrect")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<int?>("MultipleChoiceQuestionId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("varchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MultipleChoiceQuestionId");
+
+                    b.ToTable("question_mcq_answers");
+                });
+
+            modelBuilder.Entity("CodeRoyale.Data.Questions.Question", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("QuestionSetId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("QuestionSetRevision")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(1024)
+                        .HasColumnType("varchar(1024)");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("QuestionSetId", "QuestionSetRevision");
+
+                    b.ToTable("questions");
+
+                    b.HasDiscriminator<int>("Type");
+
+                    b.UseTphMappingStrategy();
+                });
+
+            modelBuilder.Entity("CodeRoyale.Data.Questions.QuestionSet", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("Revision")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("CreatedFromId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("CreatedFromRevision")
+                        .HasColumnType("int");
+
+                    b.Property<int>("LanguageId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(48)
+                        .HasColumnType("varchar(48)");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("varchar(255)");
+
+                    b.HasKey("Id", "Revision");
+
+                    b.HasIndex("LanguageId");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("CreatedFromId", "CreatedFromRevision");
+
+                    b.ToTable("question_sets");
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
                 {
                     b.Property<string>("Id")
@@ -218,6 +409,146 @@ namespace CodeRoyale.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("CodeRoyale.Data.Questions.CodeEntryRegexTest", b =>
+                {
+                    b.HasBaseType("CodeRoyale.Data.Questions.CodeEntryTest");
+
+                    b.Property<bool>("ExcludeComments")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("ExcludeLiterals")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Pattern")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("varchar(512)");
+
+                    b.ToTable("questions_code_tests");
+
+                    b.HasDiscriminator().HasValue(0);
+                });
+
+            modelBuilder.Entity("CodeRoyale.Data.Questions.CodeEntryUnitTest", b =>
+                {
+                    b.HasBaseType("CodeRoyale.Data.Questions.CodeEntryTest");
+
+                    b.Property<string>("PostTest")
+                        .IsRequired()
+                        .HasMaxLength(8192)
+                        .HasColumnType("varchar(8192)");
+
+                    b.Property<string>("PreTest")
+                        .HasMaxLength(1024)
+                        .HasColumnType("varchar(1024)");
+
+                    b.ToTable("questions_code_tests");
+
+                    b.HasDiscriminator().HasValue(1);
+                });
+
+            modelBuilder.Entity("CodeRoyale.Data.Questions.BlankEntryQuestion", b =>
+                {
+                    b.HasBaseType("CodeRoyale.Data.Questions.Question");
+
+                    b.ToTable("questions");
+
+                    b.HasDiscriminator().HasValue(2);
+                });
+
+            modelBuilder.Entity("CodeRoyale.Data.Questions.CodeEntryQuestion", b =>
+                {
+                    b.HasBaseType("CodeRoyale.Data.Questions.Question");
+
+                    b.Property<string>("StartingText")
+                        .HasMaxLength(4096)
+                        .HasColumnType("varchar(4096)");
+
+                    b.ToTable("questions");
+
+                    b.HasDiscriminator().HasValue(1);
+                });
+
+            modelBuilder.Entity("CodeRoyale.Data.Questions.MultipleChoiceQuestion", b =>
+                {
+                    b.HasBaseType("CodeRoyale.Data.Questions.Question");
+
+                    b.Property<int>("MaxSelectCount")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MinSelectCount")
+                        .HasColumnType("int");
+
+                    b.Property<bool?>("RandomizeAnswers")
+                        .HasColumnType("tinyint(1)");
+
+                    b.ToTable("questions");
+
+                    b.HasDiscriminator().HasValue(0);
+                });
+
+            modelBuilder.Entity("CodeRoyale.Data.Questions.BlankEntryAnswer", b =>
+                {
+                    b.HasOne("CodeRoyale.Data.Questions.BlankEntryQuestion", null)
+                        .WithMany("Answers")
+                        .HasForeignKey("BlankEntryQuestionId")
+                        .OnDelete(DeleteBehavior.Cascade);
+                });
+
+            modelBuilder.Entity("CodeRoyale.Data.Questions.CodeEntryTest", b =>
+                {
+                    b.HasOne("CodeRoyale.Data.Questions.CodeEntryQuestion", null)
+                        .WithMany("CorrectTests")
+                        .HasForeignKey("CodeEntryQuestionId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("CodeRoyale.Data.Questions.CodeEntryQuestion", null)
+                        .WithMany("IncorrectTests")
+                        .HasForeignKey("CodeEntryQuestionId1")
+                        .OnDelete(DeleteBehavior.Cascade);
+                });
+
+            modelBuilder.Entity("CodeRoyale.Data.Questions.MultipleChoiceAnswer", b =>
+                {
+                    b.HasOne("CodeRoyale.Data.Questions.MultipleChoiceQuestion", null)
+                        .WithMany("Answers")
+                        .HasForeignKey("MultipleChoiceQuestionId")
+                        .OnDelete(DeleteBehavior.Cascade);
+                });
+
+            modelBuilder.Entity("CodeRoyale.Data.Questions.Question", b =>
+                {
+                    b.HasOne("CodeRoyale.Data.Questions.QuestionSet", null)
+                        .WithMany("Questions")
+                        .HasForeignKey("QuestionSetId", "QuestionSetRevision")
+                        .OnDelete(DeleteBehavior.Cascade);
+                });
+
+            modelBuilder.Entity("CodeRoyale.Data.Questions.QuestionSet", b =>
+                {
+                    b.HasOne("CodeRoyale.Data.CodeLanguage", "Language")
+                        .WithMany()
+                        .HasForeignKey("LanguageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CodeRoyale.Data.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CodeRoyale.Data.Questions.QuestionSet", "CreatedFrom")
+                        .WithMany()
+                        .HasForeignKey("CreatedFromId", "CreatedFromRevision");
+
+                    b.Navigation("CreatedFrom");
+
+                    b.Navigation("Language");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole", null)
@@ -267,6 +598,28 @@ namespace CodeRoyale.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("CodeRoyale.Data.Questions.QuestionSet", b =>
+                {
+                    b.Navigation("Questions");
+                });
+
+            modelBuilder.Entity("CodeRoyale.Data.Questions.BlankEntryQuestion", b =>
+                {
+                    b.Navigation("Answers");
+                });
+
+            modelBuilder.Entity("CodeRoyale.Data.Questions.CodeEntryQuestion", b =>
+                {
+                    b.Navigation("CorrectTests");
+
+                    b.Navigation("IncorrectTests");
+                });
+
+            modelBuilder.Entity("CodeRoyale.Data.Questions.MultipleChoiceQuestion", b =>
+                {
+                    b.Navigation("Answers");
                 });
 #pragma warning restore 612, 618
         }
