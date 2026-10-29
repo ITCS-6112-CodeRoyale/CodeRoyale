@@ -22,6 +22,12 @@ public abstract class Question
     /// Which type of question is this? This is the discriminator for EF.
     /// </summary>
     public abstract QuestionType Type { get; [EditorBrowsable(EditorBrowsableState.Never)] set; }
+
+    /// <summary>
+    /// The amount of points a player gets by getting the question fully correct.
+    /// </summary>
+    [DefaultValue(1d)]
+    public double Score { get; set; } = 1;
 }
 
 public enum QuestionType

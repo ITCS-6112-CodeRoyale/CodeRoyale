@@ -109,6 +109,110 @@ namespace CodeRoyale.Migrations
                     b.ToTable("language");
                 });
 
+            modelBuilder.Entity("CodeRoyale.Data.Games.Game", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("CompletedTime")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int>("QuestionSetId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("QuestionSetRevision")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("StartedTime")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("varchar(255)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("QuestionSetId", "QuestionSetRevision");
+
+                    b.ToTable("games");
+                });
+
+            modelBuilder.Entity("CodeRoyale.Data.Games.GamePlayer", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("GameId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("JoinedTime")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("LeftTime")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("varchar(32)");
+
+                    b.Property<double>("Score")
+                        .HasColumnType("double");
+
+                    b.Property<string>("UserId")
+                        .HasColumnType("varchar(255)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GameId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("game_players");
+                });
+
+            modelBuilder.Entity("CodeRoyale.Data.Games.GamePlayerQuestionResult", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<TimeSpan>("AnswerTime")
+                        .HasColumnType("time(6)");
+
+                    b.Property<int?>("GamePlayerId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("QuestionId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Response")
+                        .IsRequired()
+                        .HasMaxLength(4096)
+                        .HasColumnType("varchar(4096)");
+
+                    b.Property<int>("Score")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GamePlayerId");
+
+                    b.HasIndex("QuestionId");
+
+                    b.ToTable("games_question_results");
+                });
+
             modelBuilder.Entity("CodeRoyale.Data.Questions.BlankEntryAnswer", b =>
                 {
                     b.Property<int>("Id")
@@ -122,7 +226,8 @@ namespace CodeRoyale.Migrations
 
                     b.Property<string>("CorrectRegex")
                         .IsRequired()
-                        .HasColumnType("longtext");
+                        .HasMaxLength(1024)
+                        .HasColumnType("varchar(1024)");
 
                     b.Property<byte>("Index")
                         .HasColumnType("tinyint unsigned");
@@ -217,6 +322,9 @@ namespace CodeRoyale.Migrations
 
                     b.Property<int?>("QuestionSetRevision")
                         .HasColumnType("int");
+
+                    b.Property<double>("Score")
+                        .HasColumnType("double");
 
                     b.Property<string>("Text")
                         .IsRequired()
@@ -487,6 +595,55 @@ namespace CodeRoyale.Migrations
                     b.HasDiscriminator().HasValue(0);
                 });
 
+            modelBuilder.Entity("CodeRoyale.Data.Games.Game", b =>
+                {
+                    b.HasOne("CodeRoyale.Data.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CodeRoyale.Data.Questions.QuestionSet", "QuestionSet")
+                        .WithMany()
+                        .HasForeignKey("QuestionSetId", "QuestionSetRevision")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("QuestionSet");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("CodeRoyale.Data.Games.GamePlayer", b =>
+                {
+                    b.HasOne("CodeRoyale.Data.Games.Game", null)
+                        .WithMany("Players")
+                        .HasForeignKey("GameId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("CodeRoyale.Data.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("CodeRoyale.Data.Games.GamePlayerQuestionResult", b =>
+                {
+                    b.HasOne("CodeRoyale.Data.Games.GamePlayer", null)
+                        .WithMany("Results")
+                        .HasForeignKey("GamePlayerId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("CodeRoyale.Data.Questions.Question", "Question")
+                        .WithMany()
+                        .HasForeignKey("QuestionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Question");
+                });
+
             modelBuilder.Entity("CodeRoyale.Data.Questions.BlankEntryAnswer", b =>
                 {
                     b.HasOne("CodeRoyale.Data.Questions.BlankEntryQuestion", null)
@@ -598,6 +755,16 @@ namespace CodeRoyale.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("CodeRoyale.Data.Games.Game", b =>
+                {
+                    b.Navigation("Players");
+                });
+
+            modelBuilder.Entity("CodeRoyale.Data.Games.GamePlayer", b =>
+                {
+                    b.Navigation("Results");
                 });
 
             modelBuilder.Entity("CodeRoyale.Data.Questions.QuestionSet", b =>

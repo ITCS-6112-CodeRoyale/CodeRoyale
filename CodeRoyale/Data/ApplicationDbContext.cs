@@ -1,3 +1,4 @@
+using CodeRoyale.Data.Games;
 using CodeRoyale.Data.Questions;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -10,6 +11,16 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
     protected override void OnModelCreating(ModelBuilder bldr)
     {
+        /* Games */
+        bldr.Entity<Game>()
+            .HasMany(g => g.Players)
+            .WithOne()
+            .OnDelete(DeleteBehavior.Cascade);
+        bldr.Entity<GamePlayer>()
+            .HasMany(g => g.Results)
+            .WithOne()
+            .OnDelete(DeleteBehavior.Cascade);
+
         /* Questions */
         bldr.Entity<Question>()
             .HasDiscriminator(q => q.Type)
@@ -40,11 +51,6 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             .WithOne()
             .OnDelete(DeleteBehavior.Cascade);
 
-        bldr.Entity<QuestionSet>()
-            .HasMany(s => s.Questions)
-            .WithOne()
-            .OnDelete(DeleteBehavior.Cascade);
-
         bldr.Entity<CodeEntryTest>()
             .HasDiscriminator(q => q.Type)
             .HasValue<CodeEntryRegexTest>(CodeEntryTestType.Regex)
@@ -52,6 +58,16 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
         bldr.Entity<CodeEntryRegexTest>();
         bldr.Entity<CodeEntryUnitTest>();
+
+        bldr.Entity<QuestionSet>()
+            .HasMany(s => s.Questions)
+            .WithOne()
+            .OnDelete(DeleteBehavior.Cascade);
+
+        bldr.Entity<QuestionSet>()
+            .HasMany<Game>()
+            .WithOne(g => g.QuestionSet)
+            .OnDelete(DeleteBehavior.Restrict);
 
         base.OnModelCreating(bldr);
     }

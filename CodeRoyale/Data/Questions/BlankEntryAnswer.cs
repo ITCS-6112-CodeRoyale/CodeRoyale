@@ -11,6 +11,8 @@ namespace CodeRoyale.Data.Questions;
 [Table("questions_blank_answers")]
 public class BlankEntryAnswer
 {
+    public const int MaxCorrectRegexLength = 1024;
+
     [Key, DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public int Id { get; set; }
 
@@ -22,6 +24,7 @@ public class BlankEntryAnswer
     /// <summary>
     /// A regular expression that determines whether or not an answer is correct.
     /// </summary>
+    [StringLength(MaxCorrectRegexLength)]
     public required string CorrectRegex { get; set; }
 
     /// <summary>
