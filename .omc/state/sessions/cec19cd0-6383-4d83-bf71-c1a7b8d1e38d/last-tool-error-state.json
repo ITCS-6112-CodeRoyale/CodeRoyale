@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"echo \\\"=== watcher result ===\\\"; cat \\\"C:/Users/rahul/AppData/Local/Temp/claude/C--Users-rahul-source-repos-BlazorSignalRApp/cec19cd0-6383-4d83-bf71-c1a7b8d1e38d/tasks/b1prv9ncc.output\\\" 2...",
+  "error": "Exit code 143\nCommand timed out after 2m 0s\n=== watcher result ===\nMYSQL80 IS RUNNING (after 2s)\n\n[exited with code 0]\n\n=== service ===\n        STATE              : 1  STOPPED \n\n=== app user + schema ===",
+  "timestamp": "2026-11-13T22:23:00.415Z",
+  "retry_count": 1
+}

@@ -1,0 +1,72 @@
+@page "/join"
+@using CodeRoyale.Live
+@inject GameService Games
+@inject NavigationManager Nav
+
+<PageTitle>Join a game</PageTitle>
+
+<h1>Join a game</h1>
+<p class="text-muted">Enter the code the host gave you. No account needed.</p>
+
+@if (error is not null)
+{
+    <div class="alert alert-danger" role="alert">@error</div>
+}
+
+<div style="max-width: 24rem;">
+    <div class="mb-3">
+        <label class="form-label" for="code">Join code</label>
+        <input id="code" class="form-control form-control-lg text-uppercase" @bind="code" @bind:event="oninput"
+               maxlength="6" autocomplete="off" spellcheck="false"
+               style="letter-spacing: 0.3em; font-family: monospace;" placeholder="ABC234" />
+        <div class="form-text">6 characters. Letters I and O and digits 1 and 0 are never used.</div>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label" for="nickname">Your nickname</label>
+        <input id="nickname" class="form-control" @bind="nickname" @bind:event="oninput" maxlength="32"
+               placeholder="e.g. Ada" />
+    </div>
+
+    <button class="btn btn-primary btn-lg" @onclick="JoinGame" disabled="@(!CanJoin)">Join game</button>
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "code")]
+    private string? CodeFromQuery { get; set; }
+
+    private string code = string.Empty;
+    private string nickname = string.Empty;
+    private string? error;
+
+    private bool CanJoin => JoinCode.IsWellFormed(code) && !string.IsNullOrWhiteSpace(nickname);
+
+    protected override void OnInitialized()
+    {
+        if (!string.IsNullOrWhiteSpace(CodeFromQuery))
+        {
+            code = JoinCode.Normalise(CodeFromQuery);
+        }
+    }
+
+    private void JoinGame()
+    {
+        error = null;
+
+        string normalised = JoinCode.Normalise(code);
+        if (normalised.Length != JoinCode.Length)
+        {
+            error = "That code does not look right. It should be 6 characters.";
+            return;
+        }
+
+        (LivePlayer? player, string? reason) = Games.Join(normalised, nickname);
+        if (player is null)
+        {
+            error = reason ?? "Could not join that game.";
+            return;
+        }
+
+        Nav.NavigateTo($"/play/{normalised}?p={player.Id}");
+    }
+}

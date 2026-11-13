@@ -1,7 +1,53 @@
-﻿@page "/"
+@page "/"
+@using CodeRoyale.Live
 
-<PageTitle>Home</PageTitle>
+<PageTitle>CodeRoyale</PageTitle>
 
-<h1>Hello, world!</h1>
+<h1>CodeRoyale</h1>
+<p class="lead">A multiplayer coding quiz. Answer faster, score higher.</p>
 
-Welcome to your new app.
+<div class="row g-3 mb-4" style="max-width: 48rem;">
+    <div class="col-12 col-md-6">
+        <div class="card h-100">
+            <div class="card-body d-flex flex-column">
+                <h2 class="card-title h5">Host a game</h2>
+                <p class="card-text text-muted flex-grow-1">
+                    Pick a deck and get a join code to share. No account needed.
+                </p>
+                <a class="btn btn-primary" href="/host">Host a game</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-md-6">
+        <div class="card h-100">
+            <div class="card-body d-flex flex-column">
+                <h2 class="card-title h5">Join a game</h2>
+                <p class="card-text text-muted flex-grow-1">
+                    Got a code from a host? Enter it with a nickname and play as a guest.
+                </p>
+                <a class="btn btn-outline-primary" href="/join">Join a game</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<h2 class="h5">Built-in decks</h2>
+<ul class="list-group mb-4" style="max-width: 48rem;">
+    @foreach (QuestionDeck deck in BuiltInDecks.All)
+    {
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+            <span>
+                <strong>@deck.Name</strong>
+                <span class="text-muted small d-block">@deck.Description</span>
+            </span>
+            <span class="text-muted small text-nowrap ms-3">
+                @deck.Questions.Count Q &middot; @deck.SecondsPerQuestion s
+            </span>
+        </li>
+    }
+</ul>
+
+<p class="text-muted small">
+    Scoring: a correct answer is worth full marks instantly, falling to half marks at the buzzer.
+    A wrong answer scores nothing at any speed.
+</p>

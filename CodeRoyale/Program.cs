@@ -1,6 +1,8 @@
 using CodeRoyale.Components;
 using CodeRoyale.Components.Account;
 using CodeRoyale.Data;
+using CodeRoyale.Hubs;
+using CodeRoyale.Live;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -26,6 +28,13 @@ builder.Services.AddSerilog();
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+
+builder.Services.AddSignalR();
+
+// Live game state is in-memory and shared, so the service is a singleton and the
+// loop that advances it is a single background worker.
+builder.Services.AddSingleton<GameService>();
+builder.Services.AddHostedService<GameLoopService>();
 
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddScoped<IdentityRedirectManager>();
@@ -95,6 +104,8 @@ app.MapRazorComponents<App>()
 
 // Add additional endpoints required by the Identity /Account Razor components.
 app.MapAdditionalIdentityEndpoints();
+
+app.MapHub<GameHub>("/gamehub");
 
 await using (AsyncServiceScope scope = app.Services.CreateAsyncScope())
 {

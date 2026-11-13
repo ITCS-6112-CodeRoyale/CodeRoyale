@@ -1,4 +1,4 @@
 <Solution>
   <Project Path="CodeRoyale/CodeRoyale.csproj" Id="a60b7dc8-a095-4680-8981-2668efadd4a3" />
-
+  <Project Path="CodeRoyale.Tests/CodeRoyale.Tests.csproj" />
 </Solution>

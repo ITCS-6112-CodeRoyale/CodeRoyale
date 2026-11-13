@@ -1,0 +1,331 @@
+@page "/play/{JoinCodeParam}"
+@using CodeRoyale.Live
+@implements IDisposable
+@inject GameService Games
+@inject NavigationManager Nav
+
+<PageTitle>CodeRoyale</PageTitle>
+
+@if (game is null)
+{
+    <h1>Game not found</h1>
+    <p class="text-muted">
+        No game is running with the code <code>@JoinCodeParam</code>. It may have finished, or the code may be wrong.
+    </p>
+    <div class="d-flex gap-2 flex-wrap">
+        <a class="btn btn-primary" href="/join">Try another code</a>
+        <a class="btn btn-outline-secondary" href="/host">Host your own</a>
+    </div>
+}
+else if (me is null)
+{
+    <h1>You are not in this game</h1>
+    <p class="text-muted">This game exists, but you do not have a seat in it.</p>
+    <a class="btn btn-primary" href="@($"/join?code={game.JoinCode}")">Join game @game.JoinCode</a>
+}
+else
+{
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+        <div>
+            <h1 class="mb-0">@game.Deck.Name</h1>
+            <span class="text-muted small">
+                Playing as <strong>@me.Name</strong>@(me.IsHost ? " (host)" : "")
+            </span>
+        </div>
+        <div class="text-end">
+            <div class="small text-muted">Join code</div>
+            <div class="fs-3 fw-bold" style="letter-spacing: 0.25em; font-family: monospace;">@game.JoinCode</div>
+        </div>
+    </div>
+
+    @if (actionError is not null)
+    {
+        <div class="alert alert-warning">@actionError</div>
+    }
+
+    @* ---------------------------------------------------------------- lobby *@
+    @if (game.Phase == GamePhase.Lobby)
+    {
+        <div class="alert alert-info">
+            Share the code <strong>@game.JoinCode</strong> &mdash; or send this link:
+            <code>@($"{Nav.BaseUri}join?code={game.JoinCode}")</code>
+        </div>
+
+        <h2 class="h5">Players (@game.Players.Count)</h2>
+        <ul class="list-group mb-4" style="max-width: 32rem;">
+            @foreach (LivePlayer p in game.Players.Values.OrderBy(x => x.IsHost ? 0 : 1).ThenBy(x => x.Name))
+            {
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <span>@p.Name</span>
+                    <span>
+                        @if (p.IsHost)
+                        {
+                            <span class="badge bg-secondary">host</span>
+                        }
+                        @if (p.Id == me.Id)
+                        {
+                            <span class="badge bg-primary">you</span>
+                        }
+                    </span>
+                </li>
+            }
+        </ul>
+
+        @if (me.IsHost)
+        {
+            <button class="btn btn-success btn-lg" @onclick="StartGame">
+                Start game (@game.QuestionCount questions)
+            </button>
+            <p class="form-text">Starting the game closes it to new players.</p>
+        }
+        else
+        {
+            <p class="text-muted">Waiting for the host to start&hellip;</p>
+        }
+    }
+
+    @* ------------------------------------------------------------- question *@
+    else if (game.Phase == GamePhase.Question && game.CurrentQuestion is not null)
+    {
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <span class="text-muted">Question @game.QuestionNumber of @game.QuestionCount</span>
+            <span class="fs-4 fw-bold">@SecondsLeft s</span>
+        </div>
+        <div class="progress mb-4" style="height: 0.5rem;">
+            <div class="progress-bar @(TimePercent < 30 ? "bg-danger" : "bg-success")"
+                 style="width: @TimePercent%;"></div>
+        </div>
+
+        <h2 class="h3 mb-4">@game.CurrentQuestion.Text</h2>
+
+        @if (me.HasAnswered(game.CurrentIndex))
+        {
+            <div class="alert alert-success">Answer locked in. Waiting for the other players&hellip;</div>
+            <ul class="list-group" style="max-width: 44rem;">
+                @foreach (AnswerOption o in game.CurrentQuestion.Options)
+                {
+                    <li class="list-group-item @(MyAnswerIndex == o.Index ? "active" : "")">@o.Text</li>
+                }
+            </ul>
+        }
+        else
+        {
+            <div class="d-grid gap-2" style="max-width: 44rem;">
+                @foreach (AnswerOption o in game.CurrentQuestion.Options)
+                {
+                    int idx = o.Index;
+                    <button class="btn @OptionClass(idx) btn-lg text-start py-3" @onclick="() => Answer(idx)">
+                        @o.Text
+                    </button>
+                }
+            </div>
+        }
+
+        <p class="text-muted small mt-4">
+            Answer faster for more points: full marks instantly, half marks at the buzzer.
+        </p>
+    }
+
+    @* --------------------------------------------------------------- reveal *@
+    else if (game.Phase == GamePhase.Reveal && game.CurrentQuestion is not null)
+    {
+        <span class="text-muted">Question @game.QuestionNumber of @game.QuestionCount</span>
+        <h2 class="h4 mb-3">@game.CurrentQuestion.Text</h2>
+
+        <ul class="list-group mb-4" style="max-width: 44rem;">
+            @foreach (AnswerOption o in game.CurrentQuestion.Options)
+            {
+                <li class="list-group-item d-flex justify-content-between align-items-center @(o.IsCorrect ? "list-group-item-success" : "")">
+                    <span>@o.Text</span>
+                    <span>
+                        @if (o.IsCorrect)
+                        {
+                            <span class="badge bg-success">correct</span>
+                        }
+                        @if (MyAnswerIndex == o.Index)
+                        {
+                            <span class="badge bg-primary">your answer</span>
+                        }
+                    </span>
+                </li>
+            }
+        </ul>
+
+        @if (MyAnswer is null)
+        {
+            <div class="alert alert-secondary">You did not answer in time. No points.</div>
+        }
+        else if (MyAnswer.IsCorrect)
+        {
+            <div class="alert alert-success">
+                Correct in @MyAnswer.Elapsed.TotalSeconds.ToString("0.0")s &mdash;
+                <strong>+@MyAnswer.Points</strong> points
+            </div>
+        }
+        else
+        {
+            <div class="alert alert-danger">Not quite. No points this round.</div>
+        }
+
+        @ScoreTable(false)
+
+        <p class="text-muted small">Next question in @SecondsLeft s&hellip;</p>
+    }
+
+    @* ---------------------------------------------------------------- final *@
+    else if (game.Phase == GamePhase.Completed)
+    {
+        <h2 class="h3">Final scores</h2>
+        <p class="text-muted">@game.QuestionCount questions &middot; @game.Players.Count players</p>
+
+        @ScoreTable(true)
+
+        <div class="mt-4 d-flex gap-2 flex-wrap">
+            <a class="btn btn-primary" href="/host">Host another game</a>
+            <a class="btn btn-outline-secondary" href="/join">Join a different game</a>
+        </div>
+    }
+}
+
+@code {
+    [Parameter] public string JoinCodeParam { get; set; } = string.Empty;
+
+    [SupplyParameterFromQuery(Name = "p")]
+    private string? PlayerId { get; set; }
+
+    private LiveGame? game;
+    private LivePlayer? me;
+    private string? actionError;
+
+    /// <summary>
+    /// Re-renders twice a second so the countdown moves. Game state changes arrive
+    /// separately through GameService.GameChanged; this only drives the clock.
+    /// </summary>
+    private Timer? ticker;
+
+    private int SecondsLeft => game?.SecondsLeft(DateTime.UtcNow) ?? 0;
+
+    private int TimePercent
+    {
+        get
+        {
+            if (game is null) return 0;
+            int total = Math.Max(1, game.Deck.SecondsPerQuestion);
+            return Math.Clamp((int)(100.0 * SecondsLeft / total), 0, 100);
+        }
+    }
+
+    private SubmittedAnswer? MyAnswer =>
+        game is not null && me is not null && me.Answers.TryGetValue(game.CurrentIndex, out SubmittedAnswer? a)
+            ? a
+            : null;
+
+    private int MyAnswerIndex => MyAnswer?.OptionIndex ?? -1;
+
+    protected override void OnInitialized()
+    {
+        Games.GameChanged += OnGameChanged;
+        ticker = new Timer(_ => InvokeAsync(StateHasChanged), null,
+                           TimeSpan.FromMilliseconds(500), TimeSpan.FromMilliseconds(500));
+    }
+
+    protected override void OnParametersSet()
+    {
+        game = Games.Find(JoinCodeParam);
+        me = game is not null && PlayerId is not null
+            ? game.Players.GetValueOrDefault(PlayerId)
+            : null;
+    }
+
+    private void OnGameChanged(string joinCode)
+    {
+        if (!string.Equals(joinCode, game?.JoinCode, StringComparison.OrdinalIgnoreCase)) return;
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        Games.GameChanged -= OnGameChanged;
+        ticker?.Dispose();
+    }
+
+    private void StartGame()
+    {
+        if (game is null || me is null) return;
+        actionError = Games.Start(game.JoinCode, me.Id);
+    }
+
+    private void Answer(int optionIndex)
+    {
+        if (game is null || me is null) return;
+        actionError = Games.SubmitAnswer(game.JoinCode, me.Id, game.CurrentIndex, optionIndex);
+    }
+
+    /// <summary>Bootstrap colour per answer index, so the options read as distinct choices.</summary>
+    private static string OptionClass(int index) => index switch
+    {
+        0 => "btn-primary",
+        1 => "btn-success",
+        2 => "btn-warning",
+        3 => "btn-danger",
+        _ => "btn-secondary"
+    };
+
+    private RenderFragment ScoreTable(bool final) => @<div class="table-responsive mb-3" style="max-width: 44rem;">
+        <table class="table align-middle">
+            <thead>
+                <tr>
+                    <th scope="col" style="width: 3rem;">#</th>
+                    <th scope="col">Player</th>
+                    @if (!final)
+                    {
+                        <th scope="col" class="text-end">This round</th>
+                    }
+                    <th scope="col" class="text-end">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (ScoreEntry e in Games.Scoreboard(game!))
+                {
+                    <tr class="@(e.PlayerId == me!.Id ? "table-active" : "")">
+                        <th scope="row">
+                            @if (final && e.Rank == 1)
+                            {
+                                <span title="Winner">&#9733;</span>
+                            }
+                            else
+                            {
+                                @e.Rank
+                            }
+                        </th>
+                        <td>
+                            @e.Name
+                            @if (e.PlayerId == me!.Id)
+                            {
+                                <span class="badge bg-primary ms-1">you</span>
+                            }
+                        </td>
+                        @if (!final)
+                        {
+                            <td class="text-end">
+                                @if (!e.AnsweredLast)
+                                {
+                                    <span class="text-muted">&mdash;</span>
+                                }
+                                else if (e.LastWasCorrect)
+                                {
+                                    <span class="text-success">+@e.LastPoints</span>
+                                }
+                                else
+                                {
+                                    <span class="text-danger">0</span>
+                                }
+                            </td>
+                        }
+                        <td class="text-end fw-bold" style="font-variant-numeric: tabular-nums;">@e.Score</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>;
+}
