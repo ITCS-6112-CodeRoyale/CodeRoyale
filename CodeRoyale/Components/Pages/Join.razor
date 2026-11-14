@@ -1,7 +1,12 @@
 @page "/join"
+@using CodeRoyale.Data
+@using CodeRoyale.Data.Games
+@using CodeRoyale.Identity
 @using CodeRoyale.Live
+
 @inject GameService Games
 @inject NavigationManager Nav
+@inject ApplicationUserProvider UserProvider
 
 <PageTitle>Join a game</PageTitle>
 
@@ -14,6 +19,7 @@
 }
 
 <div style="max-width: 24rem;">
+
     <div class="mb-3">
         <label class="form-label" for="code">Join code</label>
         <input id="code" class="form-control form-control-lg text-uppercase" @bind="code" @bind:event="oninput"
@@ -22,11 +28,18 @@
         <div class="form-text">6 characters. Letters I and O and digits 1 and 0 are never used.</div>
     </div>
 
-    <div class="mb-3">
-        <label class="form-label" for="nickname">Your nickname</label>
-        <input id="nickname" class="form-control" @bind="nickname" @bind:event="oninput" maxlength="32"
-               placeholder="e.g. Ada" />
-    </div>
+    @if (_user == null)
+    {
+        <div class="mb-3">
+            <label class="form-label" for="nickname">Your nickname</label>
+            <input id="nickname" class="form-control" @bind="nickname" @bind:event="oninput" maxlength="32"
+                   placeholder="e.g. Ada" />
+        </div>
+    }
+    else
+    {
+        <p class="mb-3">You will join as @_user.GetDisplayName()</p>
+    }
 
     <button class="btn btn-primary btn-lg" @onclick="JoinGame" disabled="@(!CanJoin)">Join game</button>
 </div>
@@ -38,35 +51,40 @@
     private string code = string.Empty;
     private string nickname = string.Empty;
     private string? error;
+    private ApplicationUser? _user;
 
-    private bool CanJoin => JoinCode.IsWellFormed(code) && !string.IsNullOrWhiteSpace(nickname);
+    private bool CanJoin => JoinCode.IsWellFormed(code) && (_user != null || !string.IsNullOrWhiteSpace(nickname));
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         if (!string.IsNullOrWhiteSpace(CodeFromQuery))
         {
-            code = JoinCode.Normalise(CodeFromQuery);
+            code = JoinCode.Normalize(CodeFromQuery);
         }
+
+        _user = await UserProvider.GetLoggedInUserAsync();
     }
 
     private void JoinGame()
     {
         error = null;
 
-        string normalised = JoinCode.Normalise(code);
+        string normalised = JoinCode.Normalize(code);
         if (normalised.Length != JoinCode.Length)
         {
             error = "That code does not look right. It should be 6 characters.";
             return;
         }
 
-        (LivePlayer? player, string? reason) = Games.Join(normalised, nickname);
+        string name = _user?.GetDisplayName() ?? nickname;
+
+        (GamePlayer? player, string? reason) = Games.Join(normalised, name, _user);
         if (player is null)
         {
             error = reason ?? "Could not join that game.";
             return;
         }
 
-        Nav.NavigateTo($"/play/{normalised}?p={player.Id}");
+        Nav.NavigateTo($"/play/{normalised}?p={player.IntlGameId}");
     }
 }

@@ -30,7 +30,7 @@ public static class JoinCode
     /// Normalises user input: trims, uppercases, and strips anything outside the alphabet
     /// so "abc-123" and "ABC123" reach the same game.
     /// </summary>
-    public static string Normalise(string? input)
+    public static string Normalize(string? input)
     {
         if (string.IsNullOrWhiteSpace(input)) return string.Empty;
 
@@ -41,5 +41,5 @@ public static class JoinCode
             .ToArray());
     }
 
-    public static bool IsWellFormed(string? input) => Normalise(input).Length == Length;
+    public static bool IsWellFormed(string? input) => Normalize(input).Length == Length;
 }

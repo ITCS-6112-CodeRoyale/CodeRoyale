@@ -1,9 +1,12 @@
 using CodeRoyale.Components;
 using CodeRoyale.Components.Account;
 using CodeRoyale.Data;
+using CodeRoyale.Data.Questions;
 using CodeRoyale.Hubs;
+using CodeRoyale.Identity;
 using CodeRoyale.Live;
 using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.AspNetCore.Components.Server;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
@@ -40,6 +43,8 @@ builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddScoped<IdentityRedirectManager>();
 builder.Services.AddScoped<AuthenticationStateProvider, IdentityRevalidatingAuthenticationStateProvider>();
 
+builder.Services.AddScoped<ApplicationUserProvider>();
+
 builder.Services.AddAuthentication(options =>
     {
         options.DefaultScheme = IdentityConstants.ApplicationScheme;
@@ -58,11 +63,32 @@ builder.Services.AddDbContext<ApplicationDbContext>(
     opts => opts.UseMySql(connectionString, version)
                 .UseAsyncSeeding(async (db, _, token) =>
                 {
-                    CodeLanguage? js = await db.Set<CodeLanguage>().FirstOrDefaultAsync(x => x.LanguageCode == "js", token);
-                    if (js == null)
+                    List<CodeLanguage> languages = await db.Set<CodeLanguage>().ToListAsync();
+                    if (!languages.Exists(x => x.LanguageCode == string.Empty))
                     {
-                        db.Set<CodeLanguage>().Add(new CodeLanguage { DisplayName = "JavaScript", LanguageCode = "js" });
-                        await db.SaveChangesAsync(token);
+                        AddLanguage(string.Empty, "Miscellaneous");
+                    }
+                    if (!languages.Exists(x => x.LanguageCode == "js"))
+                    {
+                        AddLanguage("js", "JavaScript");
+                    }
+                    if (!languages.Exists(x => x.LanguageCode == "csharp"))
+                    {
+                        AddLanguage("csharp", "C#");
+                    }
+
+                    if (!await db.Set<QuestionSet>().AnyAsync(s => s.User == null, token))
+                    {
+                        BuiltInDecks.AddAllToSet(db.Set<QuestionSet>(), languages);
+                    }
+
+                    await db.SaveChangesAsync(token);
+
+                    void AddLanguage(string id, string displayName)
+                    {
+                        CodeLanguage l = new CodeLanguage { DisplayName = displayName, LanguageCode = id };
+                        languages.Add(l);
+                        db.Set<CodeLanguage>().Add(l);
                     }
                 })
 );
@@ -77,6 +103,15 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
     .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddSignInManager()
     .AddDefaultTokenProviders();
+
+builder.Services.Configure<CircuitOptions>(options =>
+{
+#if DEBUG
+    options.DetailedErrors = true;
+#endif
+    options.DisconnectedCircuitRetentionPeriod = TimeSpan.FromSeconds(5);
+    options.DisconnectedCircuitMaxRetained = 16;
+});
 
 builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
 

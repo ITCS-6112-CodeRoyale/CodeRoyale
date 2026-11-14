@@ -1,3 +1,4 @@
+using CodeRoyale.Data.Questions;
 using CodeRoyale.Live;
 
 namespace CodeRoyale.Tests;
@@ -8,12 +9,12 @@ namespace CodeRoyale.Tests;
 /// </summary>
 public class ScoringTests
 {
-    private static QuestionView Question(double maxScore = 1000) => new()
+    private static Question Question(double maxScore = 1000) => new MultipleChoiceQuestion()
     {
         Index = 0,
         Text = "q",
-        MaxScore = maxScore,
-        Options = new List<AnswerOption>
+        Score = maxScore,
+        Answers = new List<MultipleChoiceAnswer>
         {
             new() { Index = 0, Text = "right", IsCorrect = true },
             new() { Index = 1, Text = "wrong", IsCorrect = false }

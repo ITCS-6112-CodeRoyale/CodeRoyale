@@ -1,3 +1,7 @@
+using CodeRoyale.Data;
+using CodeRoyale.Data.Questions;
+using Microsoft.EntityFrameworkCore;
+
 namespace CodeRoyale.Live;
 
 /// <summary>
@@ -7,35 +11,41 @@ namespace CodeRoyale.Live;
 /// </summary>
 public static class BuiltInDecks
 {
-    public static IReadOnlyList<QuestionDeck> All { get; } = new[]
-    {
-        CSharpBasics(),
-        JavaScriptQuirks(),
-        BigO()
-    };
-
-    public static QuestionDeck? ById(string? id) =>
-        All.FirstOrDefault(d => string.Equals(d.Id, id, StringComparison.OrdinalIgnoreCase));
-
-    private static QuestionView Q(int index, string text, int correct, params string[] options) => new()
-    {
-        Index = index,
-        Text = text,
-        Options = options.Select((t, i) => new AnswerOption
+    private static MultipleChoiceQuestion Q(int index, string text, int correct, params string[] options) =>
+        options.Length > byte.MaxValue ? throw new ArgumentException("Expected <= 255 answers.", nameof(options))
+        : new MultipleChoiceQuestion
         {
-            Index = i,
-            Text = t,
-            IsCorrect = i == correct
-        }).ToList()
-    };
+            Index = index,
+            Text = text,
+            MaxSelectCount = 1,
+            MinSelectCount = 1,
+            Score = 1000,
+            Answers = options.Select((t, i) => new MultipleChoiceAnswer
+            {
+                Index = (byte)i,
+                Text = t,
+                IsCorrect = i == correct
+            }).ToList()
+        };
 
-    private static QuestionDeck CSharpBasics() => new()
+    internal static void AddAllToSet(DbSet<QuestionSet> set, List<CodeLanguage> languages)
     {
-        Id = "csharp-basics",
+        set.Add(CSharpBasics(languages.First(x => x.LanguageCode == "csharp")));
+
+        set.Add(JavaScriptQuirks(languages.First(x => x.LanguageCode == "js")));
+        
+        set.Add(BigO(languages.First(x => x.LanguageCode == string.Empty)));
+    }
+
+    private static QuestionSet CSharpBasics(CodeLanguage csharp) => new QuestionSet
+    {
+        Id = 0,
+        Revision = 0,
+        Language = csharp,
         Name = "C# Basics",
         Description = "Types, keywords and the things every C# dev trips over once.",
         SecondsPerQuestion = 20,
-        Questions = new List<QuestionView>
+        Questions = new List<Question>
         {
             Q(0, "What does the 'var' keyword do in C#?", 1,
                 "Declares a dynamically typed variable resolved at runtime",
@@ -69,14 +79,16 @@ public static class BuiltInDecks
         }
     };
 
-    private static QuestionDeck JavaScriptQuirks() => new()
+    private static QuestionSet JavaScriptQuirks(CodeLanguage js) => new QuestionSet
     {
-        Id = "js-quirks",
+        Id = 0,
+        Revision = 0,
         Name = "JavaScript Quirks",
+        Language = js,
         Description = "Coercion, scoping and the famously strange bits.",
         SecondsPerQuestion = 20,
-        Questions = new List<QuestionView>
-        {
+        Questions =
+        [
             Q(0, "What does `typeof null` return?", 2,
                 "\"null\"",
                 "\"undefined\"",
@@ -106,17 +118,19 @@ public static class BuiltInDecks
                 "false",
                 "NaN",
                 "A SyntaxError")
-        }
+        ]
     };
 
-    private static QuestionDeck BigO() => new()
+    private static QuestionSet BigO(CodeLanguage misc) => new QuestionSet
     {
-        Id = "big-o",
+        Id = 0,
+        Revision = 0,
         Name = "Big-O Sprint",
+        Language = misc,
         Description = "Complexity of the operations you reach for every day.",
         SecondsPerQuestion = 15,
-        Questions = new List<QuestionView>
-        {
+        Questions =
+        [
             Q(0, "Average time complexity of binary search on a sorted array?", 1,
                 "O(1)",
                 "O(log n)",
@@ -146,6 +160,6 @@ public static class BuiltInDecks
                 "O(n log n)",
                 "O(log n)",
                 "O(n squared)")
-        }
+        ]
     };
 }

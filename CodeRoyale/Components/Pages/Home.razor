@@ -1,5 +1,9 @@
 @page "/"
-@using CodeRoyale.Live
+@using CodeRoyale.Data
+@using CodeRoyale.Data.Questions
+@using Microsoft.EntityFrameworkCore;
+
+@inject ApplicationDbContext DbContext
 
 <PageTitle>CodeRoyale</PageTitle>
 
@@ -31,23 +35,38 @@
     </div>
 </div>
 
-<h2 class="h5">Built-in decks</h2>
-<ul class="list-group mb-4" style="max-width: 48rem;">
-    @foreach (QuestionDeck deck in BuiltInDecks.All)
-    {
-        <li class="list-group-item d-flex justify-content-between align-items-center">
-            <span>
-                <strong>@deck.Name</strong>
-                <span class="text-muted small d-block">@deck.Description</span>
-            </span>
-            <span class="text-muted small text-nowrap ms-3">
-                @deck.Questions.Count Q &middot; @deck.SecondsPerQuestion s
-            </span>
-        </li>
-    }
-</ul>
+@if (_builtInSets != null)
+{
+    <h2 class="h5">Built-in decks</h2>
+    <ul class="list-group mb-4" style="max-width: 48rem;">
+        @foreach (QuestionSet deck in _builtInSets)
+        {
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                <span>
+                    <strong>@deck.Name</strong>
+                    <span class="text-muted small d-block">@deck.Description</span>
+                </span>
+                <span class="text-muted small text-nowrap ms-3">
+                    @deck.Questions.Count Q &middot; @deck.SecondsPerQuestion s
+                </span>
+            </li>
+        }
+    </ul>
+}
 
 <p class="text-muted small">
     Scoring: a correct answer is worth full marks instantly, falling to half marks at the buzzer.
     A wrong answer scores nothing at any speed.
 </p>
+
+@code {
+
+    private List<QuestionSet>? _builtInSets;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _builtInSets = await DbContext.QuestionSets.Where(x => x.User == null)
+            .Include(x => x.Questions)
+            .ToListAsync();
+    }
+}

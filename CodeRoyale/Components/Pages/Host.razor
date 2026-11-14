@@ -1,7 +1,18 @@
 @page "/host"
+@using CodeRoyale.Data
+@using CodeRoyale.Data.Games
+@using CodeRoyale.Data.Questions
+@using CodeRoyale.Identity
 @using CodeRoyale.Live
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.EntityFrameworkCore;
+
 @inject GameService Games
 @inject NavigationManager Nav
+@inject ApplicationDbContext DbContext
+@inject ApplicationUserProvider UserProvider
+
+@attribute [Authorize]
 
 <PageTitle>Host a game</PageTitle>
 
@@ -13,49 +24,60 @@
     <div class="alert alert-danger" role="alert">@error</div>
 }
 
-<div class="mb-4" style="max-width: 24rem;">
-    <label class="form-label" for="hostName">Your name</label>
-    <input id="hostName" class="form-control" @bind="hostName" @bind:event="oninput" maxlength="32"
-           placeholder="e.g. Rahul" />
-</div>
-
-<h2 class="h5">Choose a deck</h2>
-<div class="row g-3">
-    @foreach (QuestionDeck deck in BuiltInDecks.All)
-    {
-        <div class="col-12 col-md-6 col-lg-4">
-            <div class="card h-100">
-                <div class="card-body d-flex flex-column">
-                    <h3 class="card-title h6">@deck.Name</h3>
-                    <p class="card-text small text-muted flex-grow-1">@deck.Description</p>
-                    <p class="card-text small mb-3">
-                        <strong>@deck.Questions.Count</strong> questions &middot;
-                        <strong>@deck.SecondsPerQuestion</strong>s each
-                    </p>
-                    <button class="btn btn-primary" @onclick="() => StartHosting(deck)">
-                        Host this deck
-                    </button>
+@if (_sets != null && _user != null)
+{
+    <h2 class="h5">Choose a deck</h2>
+    <div class="row g-3">
+        @foreach (QuestionSet deck in _sets)
+        {
+            <div class="col-12 col-md-6 col-lg-4">
+                <div class="card h-100">
+                    <div class="card-body d-flex flex-column">
+                        <h3 class="card-title h6">@deck.Name</h3>
+                        @if (!string.IsNullOrEmpty(deck.Description))
+                        {
+                            <p class="card-text small text-muted flex-grow-1">@deck.Description</p>
+                        }
+                        <p class="card-text small mb-3">
+                            <strong>@deck.Questions.Count</strong> questions &middot;
+                            <strong>@deck.SecondsPerQuestion</strong>s each
+                        </p>
+                        <button class="btn btn-primary" @onclick="() => StartHosting(deck)">
+                            Host this deck
+                        </button>
+                    </div>
                 </div>
             </div>
-        </div>
-    }
-</div>
+        }
+    </div>
+}
 
 @code {
-    private string hostName = string.Empty;
     private string? error;
 
-    private void StartHosting(QuestionDeck deck)
+    private List<QuestionSet>? _sets;
+    private ApplicationUser? _user;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _user = await UserProvider.GetLoggedInUserAsync();
+
+        _sets = await Question.IncludeAll(DbContext.QuestionSets.Where(s => s.User == null || s.User == _user))
+            .ToListAsync();
+    }
+
+    private void StartHosting(QuestionSet deck)
     {
         error = null;
-
-        if (string.IsNullOrWhiteSpace(hostName))
+        if (_user == null)
         {
-            error = "Enter your name first so players can see who is hosting.";
+            error = "Sign in first.";
             return;
         }
 
-        (LiveGame game, LivePlayer host) = Games.CreateGame(hostName, deck);
-        Nav.NavigateTo($"/play/{game.JoinCode}?p={host.Id}");
+        string hostName = _user.GetDisplayName();
+
+        (LiveGame game, GamePlayer host) = Games.CreateGame(hostName, deck, _user);
+        Nav.NavigateTo($"/play/{game.JoinCode}?p={host.IntlGameId}");
     }
 }

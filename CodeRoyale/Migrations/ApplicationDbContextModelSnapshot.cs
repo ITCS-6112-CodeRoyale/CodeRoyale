@@ -47,6 +47,10 @@ namespace CodeRoyale.Migrations
                     b.Property<DateTimeOffset?>("LockoutEnd")
                         .HasColumnType("datetime(6)");
 
+                    b.Property<string>("Name")
+                        .HasMaxLength(32)
+                        .HasColumnType("varchar(32)");
+
                     b.Property<string>("NormalizedEmail")
                         .HasMaxLength(256)
                         .HasColumnType("varchar(256)");
@@ -317,6 +321,9 @@ namespace CodeRoyale.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<int>("Index")
+                        .HasColumnType("int");
+
                     b.Property<int?>("QuestionSetId")
                         .HasColumnType("int");
 
@@ -362,6 +369,10 @@ namespace CodeRoyale.Migrations
                     b.Property<int?>("CreatedFromRevision")
                         .HasColumnType("int");
 
+                    b.Property<string>("Description")
+                        .HasMaxLength(256)
+                        .HasColumnType("varchar(256)");
+
                     b.Property<int>("LanguageId")
                         .HasColumnType("int");
 
@@ -370,8 +381,10 @@ namespace CodeRoyale.Migrations
                         .HasMaxLength(48)
                         .HasColumnType("varchar(48)");
 
+                    b.Property<double>("SecondsPerQuestion")
+                        .HasColumnType("double");
+
                     b.Property<string>("UserId")
-                        .IsRequired()
                         .HasColumnType("varchar(255)");
 
                     b.HasKey("Id", "Revision");
@@ -691,9 +704,7 @@ namespace CodeRoyale.Migrations
 
                     b.HasOne("CodeRoyale.Data.ApplicationUser", "User")
                         .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("UserId");
 
                     b.HasOne("CodeRoyale.Data.Questions.QuestionSet", "CreatedFrom")
                         .WithMany()

@@ -1,4 +1,5 @@
-﻿using System.ComponentModel;
+﻿using System.Collections.Concurrent;
+using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -8,6 +9,9 @@ namespace CodeRoyale.Data.Games;
 public class GamePlayer
 {
     public const int MaxNameLength = 32;
+
+    [NotMapped]
+    internal string? IntlGameId; // not GameId cause it messes up the automatically mapped property
 
     [Key, DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public int Id { get; set; }
@@ -33,4 +37,7 @@ public class GamePlayer
     public IList<GamePlayerQuestionResult> Results { get; set; }
 
 #nullable disable
+    [NotMapped]
+    public ConcurrentDictionary<int, GamePlayerQuestionResult> Answers { get; } = new();
+    public bool HasAnswered(int questionIndex) => Answers.ContainsKey(questionIndex);
 }

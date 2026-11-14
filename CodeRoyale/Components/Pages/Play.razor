@@ -1,8 +1,15 @@
 @page "/play/{JoinCodeParam}"
+@using System.Globalization
+@using CodeRoyale.Data
+@using CodeRoyale.Data.Games
+@using CodeRoyale.Data.Questions
+@using CodeRoyale.Identity
 @using CodeRoyale.Live
+
 @implements IDisposable
 @inject GameService Games
 @inject NavigationManager Nav
+@inject ApplicationUserProvider UserProvider
 
 <PageTitle>CodeRoyale</PageTitle>
 
@@ -29,7 +36,7 @@ else
         <div>
             <h1 class="mb-0">@game.Deck.Name</h1>
             <span class="text-muted small">
-                Playing as <strong>@me.Name</strong>@(me.IsHost ? " (host)" : "")
+                Playing as <strong>@me.Name</strong>@(_isHost ? " (host)" : "")
             </span>
         </div>
         <div class="text-end">
@@ -53,16 +60,16 @@ else
 
         <h2 class="h5">Players (@game.Players.Count)</h2>
         <ul class="list-group mb-4" style="max-width: 32rem;">
-            @foreach (LivePlayer p in game.Players.Values.OrderBy(x => x.IsHost ? 0 : 1).ThenBy(x => x.Name))
+            @foreach (GamePlayer p in game.Players.Values.OrderByDescending(x => x.IntlGameId == game.HostPlayerId).ThenBy(x => x.Name))
             {
                 <li class="list-group-item d-flex justify-content-between align-items-center">
                     <span>@p.Name</span>
                     <span>
-                        @if (p.IsHost)
+                        @if (p.IntlGameId == game.HostPlayerId)
                         {
                             <span class="badge bg-secondary">host</span>
                         }
-                        @if (p.Id == me.Id)
+                        @if (p.IntlGameId == me.IntlGameId)
                         {
                             <span class="badge bg-primary">you</span>
                         }
@@ -71,7 +78,7 @@ else
             }
         </ul>
 
-        @if (me.IsHost)
+        @if (_isHost)
         {
             <button class="btn btn-success btn-lg" @onclick="StartGame">
                 Start game (@game.QuestionCount questions)
@@ -101,24 +108,37 @@ else
         @if (me.HasAnswered(game.CurrentIndex))
         {
             <div class="alert alert-success">Answer locked in. Waiting for the other players&hellip;</div>
-            <ul class="list-group" style="max-width: 44rem;">
-                @foreach (AnswerOption o in game.CurrentQuestion.Options)
-                {
-                    <li class="list-group-item @(MyAnswerIndex == o.Index ? "active" : "")">@o.Text</li>
-                }
-            </ul>
+            
+            @switch (game.CurrentQuestion)
+            {
+                case MultipleChoiceQuestion mcq:
+            
+                    <ul class="list-group" style="max-width: 44rem;">
+                        @foreach (MultipleChoiceAnswer answer in mcq.Answers)
+                        {
+                            <li class="list-group-item @(MyAnswerIndex == answer.Index ? "active" : "")">@answer.Text</li>
+                        }
+                    </ul>
+                    break; // TODO add more questions
+            }
         }
         else
         {
-            <div class="d-grid gap-2" style="max-width: 44rem;">
-                @foreach (AnswerOption o in game.CurrentQuestion.Options)
-                {
-                    int idx = o.Index;
-                    <button class="btn @OptionClass(idx) btn-lg text-start py-3" @onclick="() => Answer(idx)">
-                        @o.Text
-                    </button>
-                }
-            </div>
+            @switch (game.CurrentQuestion)
+            {
+                case MultipleChoiceQuestion mcq:
+            
+                    <div class="d-grid gap-2" style="max-width: 44rem;">
+                        @foreach (MultipleChoiceAnswer answer in mcq.Answers)
+                        {
+                            int idx = answer.Index;
+                            <button class="btn @OptionClass(idx) btn-lg text-start py-3" @onclick="() => AnswerMultipleChoice(idx, mcq)">
+                                @answer.Text
+                            </button>
+                        }
+                    </div>
+                    break; // TODO add more questions
+            }
         }
 
         <p class="text-muted small mt-4">
@@ -132,24 +152,30 @@ else
         <span class="text-muted">Question @game.QuestionNumber of @game.QuestionCount</span>
         <h2 class="h4 mb-3">@game.CurrentQuestion.Text</h2>
 
-        <ul class="list-group mb-4" style="max-width: 44rem;">
-            @foreach (AnswerOption o in game.CurrentQuestion.Options)
-            {
-                <li class="list-group-item d-flex justify-content-between align-items-center @(o.IsCorrect ? "list-group-item-success" : "")">
-                    <span>@o.Text</span>
-                    <span>
-                        @if (o.IsCorrect)
-                        {
-                            <span class="badge bg-success">correct</span>
-                        }
-                        @if (MyAnswerIndex == o.Index)
-                        {
-                            <span class="badge bg-primary">your answer</span>
-                        }
-                    </span>
-                </li>
-            }
-        </ul>
+        @switch (game.CurrentQuestion)
+        {
+            case MultipleChoiceQuestion mcq:
+            
+                <ul class="list-group mb-4" style="max-width: 44rem;">
+                    @foreach (MultipleChoiceAnswer answer in mcq.Answers)
+                    {
+                        <li class="list-group-item d-flex justify-content-between align-items-center @(answer.IsCorrect ? "list-group-item-success" : "")">
+                            <span>@answer.Text</span>
+                            <span>
+                                @if (answer.IsCorrect)
+                                {
+                                    <span class="badge bg-success">correct</span>
+                                }
+                                @if (MyAnswerIndex == answer.Index)
+                                {
+                                    <span class="badge bg-primary">your answer</span>
+                                }
+                            </span>
+                        </li>
+                    }
+                </ul>
+                break; // TODO add more questions
+        }
 
         @if (MyAnswer is null)
         {
@@ -158,8 +184,8 @@ else
         else if (MyAnswer.IsCorrect)
         {
             <div class="alert alert-success">
-                Correct in @MyAnswer.Elapsed.TotalSeconds.ToString("0.0")s &mdash;
-                <strong>+@MyAnswer.Points</strong> points
+                Correct in @MyAnswer.AnswerTime.TotalSeconds.ToString("0.0")s &mdash;
+                <strong>+@MyAnswer.Score</strong> points
             </div>
         }
         else
@@ -185,6 +211,11 @@ else
             <a class="btn btn-outline-secondary" href="/join">Join a different game</a>
         </div>
     }
+    else if (game.Phase == GamePhase.Ended)
+    {
+        <h2 class="h3">Game Ended</h2>
+        <p class="text-muted">The host ended the game early</p>
+    }
 }
 
 @code {
@@ -194,8 +225,12 @@ else
     private string? PlayerId { get; set; }
 
     private LiveGame? game;
-    private LivePlayer? me;
+    private GamePlayer? me;
     private string? actionError;
+
+    private bool _isHost;
+
+    private ApplicationUser? _user;
 
     /// <summary>
     /// Re-renders twice a second so the countdown moves. Game state changes arrive
@@ -210,31 +245,41 @@ else
         get
         {
             if (game is null) return 0;
-            int total = Math.Max(1, game.Deck.SecondsPerQuestion);
+            double total = Math.Max(1d, game.Deck.SecondsPerQuestion);
             return Math.Clamp((int)(100.0 * SecondsLeft / total), 0, 100);
         }
     }
 
-    private SubmittedAnswer? MyAnswer =>
-        game is not null && me is not null && me.Answers.TryGetValue(game.CurrentIndex, out SubmittedAnswer? a)
+    private GamePlayerQuestionResult? MyAnswer =>
+        game is not null && me is not null && me.Answers.TryGetValue(game.CurrentIndex, out GamePlayerQuestionResult? a)
             ? a
             : null;
 
-    private int MyAnswerIndex => MyAnswer?.OptionIndex ?? -1;
+    private int MyAnswerIndex
+    {
+        get
+        {
+            GamePlayerQuestionResult? myAnswer = MyAnswer;
+            return myAnswer == null || !int.TryParse(myAnswer.Response, CultureInfo.InvariantCulture, out int n) ? -1 : n;
+        }
+    }
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         Games.GameChanged += OnGameChanged;
-        ticker = new Timer(_ => InvokeAsync(StateHasChanged), null,
-                           TimeSpan.FromMilliseconds(500), TimeSpan.FromMilliseconds(500));
+
+        _user = await UserProvider.GetLoggedInUserAsync();
+
+        ticker = new Timer(_ => InvokeAsync(StateHasChanged), null, TimeSpan.FromMilliseconds(500), TimeSpan.FromMilliseconds(500));
     }
 
     protected override void OnParametersSet()
     {
         game = Games.Find(JoinCodeParam);
-        me = game is not null && PlayerId is not null
+        me = game != null && PlayerId != null
             ? game.Players.GetValueOrDefault(PlayerId)
             : null;
+        _isHost = me != null && game != null && game.HostPlayerId == me.IntlGameId;
     }
 
     private void OnGameChanged(string joinCode)
@@ -247,18 +292,29 @@ else
     {
         Games.GameChanged -= OnGameChanged;
         ticker?.Dispose();
+
+        if (game == null)
+            return;
+        if (_isHost)
+            Games.StartEndingGame(game.JoinCode);
+        else if (me != null)
+            Games.LeaveGame(game.JoinCode, me);
     }
 
     private void StartGame()
     {
         if (game is null || me is null) return;
-        actionError = Games.Start(game.JoinCode, me.Id);
+
+        if (!_isHost)
+            actionError = "Only the host can start the game";
+        else
+            actionError = Games.Start(game.JoinCode);
     }
 
-    private void Answer(int optionIndex)
+    private void AnswerMultipleChoice(int optionIndex, Question question)
     {
         if (game is null || me is null) return;
-        actionError = Games.SubmitAnswer(game.JoinCode, me.Id, game.CurrentIndex, optionIndex);
+        actionError = Games.SubmitMultipleChoiceAnswer(game.JoinCode, me.IntlGameId!, question, optionIndex);
     }
 
     /// <summary>Bootstrap colour per answer index, so the options read as distinct choices.</summary>
@@ -287,7 +343,7 @@ else
             <tbody>
                 @foreach (ScoreEntry e in Games.Scoreboard(game!))
                 {
-                    <tr class="@(e.PlayerId == me!.Id ? "table-active" : "")">
+                    <tr class="@(e.PlayerId == me!.IntlGameId ? "table-active" : "")">
                         <th scope="row">
                             @if (final && e.Rank == 1)
                             {
@@ -300,7 +356,7 @@ else
                         </th>
                         <td>
                             @e.Name
-                            @if (e.PlayerId == me!.Id)
+                            @if (e.PlayerId == me!.IntlGameId)
                             {
                                 <span class="badge bg-primary ms-1">you</span>
                             }

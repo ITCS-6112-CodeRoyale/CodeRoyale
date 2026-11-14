@@ -30,4 +30,6 @@ public class GamePlayerQuestionResult
     /// Points gained from answering this question
     /// </summary>
     public required int Score { get; set; }
+
+    public bool IsCorrect => Score > 0;
 }

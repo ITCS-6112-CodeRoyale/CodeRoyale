@@ -52,14 +52,14 @@ public class JoinCodeTests
     [InlineData("abc2341234", "ABC234")]   // excess trimmed to 6
     public void Normalise_accepts_sloppy_input(string input, string expected)
     {
-        Assert.Equal(expected, JoinCode.Normalise(input));
+        Assert.Equal(expected, JoinCode.Normalize(input));
     }
 
     [Fact]
     public void Normalise_strips_characters_outside_the_alphabet()
     {
         // I, O, 0 and 1 are not in the alphabet, so they are dropped rather than mapped.
-        Assert.Equal("ABC", JoinCode.Normalise("AIBOC01"));
+        Assert.Equal("ABC", JoinCode.Normalize("AIBOC01"));
     }
 
     [Theory]

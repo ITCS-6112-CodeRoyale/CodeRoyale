@@ -28,6 +28,12 @@
             <hr />
             <ValidationSummary class="text-danger" role="alert" />
             <div class="form-floating mb-3">
+                <InputText @bind-Value="Input.Name" id="Input.Name" class="form-control" autocomplete="given-name" aria-required="true" placeholder="Name" />
+                <label for="Input.Name">Name</label>
+                <ValidationMessage For="() => Input.Name" class="text-danger" />
+                <p class="text-muted">This will be your display name while playing.</p>
+            </div>
+            <div class="form-floating mb-3">
                 <InputText @bind-Value="Input.Email" id="Input.Email" class="form-control" autocomplete="username" aria-required="true" placeholder="name@example.com" />
                 <label for="Input.Email">Email</label>
                 <ValidationMessage For="() => Input.Email" class="text-danger" />
@@ -74,6 +80,8 @@
     {
         var user = CreateUser();
 
+        user.Name = Input.Name;
+
         await UserStore.SetUserNameAsync(user, Input.Email, CancellationToken.None);
         var emailStore = GetEmailStore();
         await emailStore.SetEmailAsync(user, Input.Email, CancellationToken.None);
@@ -111,15 +119,7 @@
 
     private ApplicationUser CreateUser()
     {
-        try
-        {
-            return Activator.CreateInstance<ApplicationUser>();
-        }
-        catch
-        {
-            throw new InvalidOperationException($"Can't create an instance of '{nameof(ApplicationUser)}'. " +
-                $"Ensure that '{nameof(ApplicationUser)}' is not an abstract class and has a parameterless constructor.");
-        }
+        return new ApplicationUser();
     }
 
     private IUserEmailStore<ApplicationUser> GetEmailStore()
@@ -133,6 +133,10 @@
 
     private sealed class InputModel
     {
+        [Required]
+        [Display(Name = "Name")]
+        public string Name { get; set; } = "";
+        
         [Required]
         [EmailAddress]
         [Display(Name = "Email")]

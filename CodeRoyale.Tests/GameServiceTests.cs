@@ -1,8 +1,11 @@
+using CodeRoyale.Data.Games;
+using CodeRoyale.Data.Questions;
 using CodeRoyale.Hubs;
 using CodeRoyale.Live;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
+using System.ComponentModel.Design;
 
 namespace CodeRoyale.Tests;
 
@@ -13,19 +16,20 @@ namespace CodeRoyale.Tests;
 public class GameServiceTests
 {
     private static GameService NewService() =>
-        new(Substitute.For<IHubContext<GameHub>>(), NullLogger<GameService>.Instance);
+        new(new ServiceContainer(), Substitute.For<IHubContext<GameHub>>(), NullLogger<GameService>.Instance);
 
-    private static QuestionDeck Deck(int questions = 3, int seconds = 20) => new()
+    private static QuestionSet Deck(int questions = 3, int seconds = 20) => new()
     {
-        Id = "test",
+        Id = 0,
         Name = "Test deck",
-        Description = "d",
         SecondsPerQuestion = seconds,
-        Questions = Enumerable.Range(0, questions).Select(i => new QuestionView
+        Revision = 0,
+        Language = new Data.CodeLanguage { LanguageCode = "ts", DisplayName = "Test Language" },
+        Questions = Enumerable.Range(0, questions).Select<int, Question>(i => new MultipleChoiceQuestion
         {
             Index = i,
             Text = $"Question {i}",
-            Options = new List<AnswerOption>
+            Answers = new List<MultipleChoiceAnswer>
             {
                 new() { Index = 0, Text = "right", IsCorrect = true },
                 new() { Index = 1, Text = "wrong", IsCorrect = false }
@@ -37,10 +41,10 @@ public class GameServiceTests
     public void Created_game_starts_in_the_lobby_with_the_host_seated()
     {
         GameService svc = NewService();
-        (LiveGame game, LivePlayer host) = svc.CreateGame("Rahul", Deck());
+        (LiveGame game, GamePlayer host) = svc.CreateGame("Rahul", Deck(), null);
 
         Assert.Equal(GamePhase.Lobby, game.Phase);
-        Assert.True(host.IsHost);
+        Assert.Equal(host.IntlGameId, game.HostPlayerId);
         Assert.Equal("Rahul", host.Name);
         Assert.Single(game.Players);
         Assert.Equal(-1, game.CurrentIndex);
@@ -50,7 +54,7 @@ public class GameServiceTests
     public void Game_is_findable_by_code_case_insensitively()
     {
         GameService svc = NewService();
-        (LiveGame game, _) = svc.CreateGame("Host", Deck());
+        (LiveGame game, _) = svc.CreateGame("Host", Deck(), null);
 
         Assert.NotNull(svc.Find(game.JoinCode));
         Assert.NotNull(svc.Find(game.JoinCode.ToLowerInvariant()));
@@ -61,14 +65,14 @@ public class GameServiceTests
     public void Guests_can_join_without_a_user_id()
     {
         GameService svc = NewService();
-        (LiveGame game, _) = svc.CreateGame("Host", Deck());
+        (LiveGame game, _) = svc.CreateGame("Host", Deck(), null);
 
-        (LivePlayer? guest, string? error) = svc.Join(game.JoinCode, "Ada");
+        (GamePlayer? guest, string? error) = svc.Join(game.JoinCode, "Ada", null);
 
         Assert.Null(error);
         Assert.NotNull(guest);
         Assert.Null(guest!.UserId);
-        Assert.False(guest.IsHost);
+        Assert.NotEqual(guest.IntlGameId, game.HostPlayerId);
         Assert.Equal(2, game.Players.Count);
     }
 
@@ -76,10 +80,10 @@ public class GameServiceTests
     public void Duplicate_nicknames_are_rejected()
     {
         GameService svc = NewService();
-        (LiveGame game, _) = svc.CreateGame("Host", Deck());
-        svc.Join(game.JoinCode, "Ada");
+        (LiveGame game, _) = svc.CreateGame("Host", Deck(), null);
+        svc.Join(game.JoinCode, "Ada", null);
 
-        (LivePlayer? second, string? error) = svc.Join(game.JoinCode, "ada");
+        (GamePlayer? second, string? error) = svc.Join(game.JoinCode, "ada", null);
 
         Assert.Null(second);
         Assert.Contains("already taken", error);
@@ -89,37 +93,20 @@ public class GameServiceTests
     public void Joining_an_unknown_code_fails_cleanly()
     {
         GameService svc = NewService();
-        (LivePlayer? player, string? error) = svc.Join("ZZZZZZ", "Ada");
+        (GamePlayer? player, string? error) = svc.Join("ZZZZZZ", "Ada", null);
 
         Assert.Null(player);
         Assert.NotNull(error);
     }
 
     [Fact]
-    public void Only_the_host_can_start_the_game()
-    {
-        GameService svc = NewService();
-        (LiveGame game, LivePlayer host) = svc.CreateGame("Host", Deck());
-        (LivePlayer? guest, _) = svc.Join(game.JoinCode, "Ada");
-
-        string? guestAttempt = svc.Start(game.JoinCode, guest!.Id);
-        Assert.Contains("Only the host", guestAttempt);
-        Assert.Equal(GamePhase.Lobby, game.Phase);
-
-        string? hostAttempt = svc.Start(game.JoinCode, host.Id);
-        Assert.Null(hostAttempt);
-        Assert.Equal(GamePhase.Question, game.Phase);
-        Assert.Equal(0, game.CurrentIndex);
-    }
-
-    [Fact]
     public void Joining_after_the_game_starts_is_rejected()
     {
         GameService svc = NewService();
-        (LiveGame game, LivePlayer host) = svc.CreateGame("Host", Deck());
-        svc.Start(game.JoinCode, host.Id);
+        (LiveGame game, GamePlayer host) = svc.CreateGame("Host", Deck(), null);
+        svc.Start(game.JoinCode);
 
-        (LivePlayer? late, string? error) = svc.Join(game.JoinCode, "Latecomer");
+        (GamePlayer? late, string? error) = svc.Join(game.JoinCode, "Latecomer", null);
 
         Assert.Null(late);
         Assert.Contains("already started", error);
@@ -129,15 +116,15 @@ public class GameServiceTests
     public void Answering_twice_is_rejected_and_does_not_double_score()
     {
         GameService svc = NewService();
-        (LiveGame game, LivePlayer host) = svc.CreateGame("Host", Deck());
-        (LivePlayer? ada, _) = svc.Join(game.JoinCode, "Ada");
-        svc.Start(game.JoinCode, host.Id);
+        (LiveGame game, GamePlayer host) = svc.CreateGame("Host", Deck(), null);
+        (GamePlayer? ada, _) = svc.Join(game.JoinCode, "Ada", null);
+        svc.Start(game.JoinCode);
 
-        Assert.Null(svc.SubmitAnswer(game.JoinCode, ada!.Id, 0, 0));
+        Assert.Null(svc.SubmitMultipleChoiceAnswer(game.JoinCode, ada!.IntlGameId!, game.Deck.Questions[0], 0));
         double afterFirst = ada.Score;
         Assert.True(afterFirst > 0);
 
-        string? second = svc.SubmitAnswer(game.JoinCode, ada.Id, 0, 0);
+        string? second = svc.SubmitMultipleChoiceAnswer(game.JoinCode, ada!.IntlGameId!, game.Deck.Questions[0], 0);
 
         Assert.Contains("already answered", second);
         Assert.Equal(afterFirst, ada.Score);
@@ -147,11 +134,11 @@ public class GameServiceTests
     public void Answering_a_stale_question_index_is_rejected()
     {
         GameService svc = NewService();
-        (LiveGame game, LivePlayer host) = svc.CreateGame("Host", Deck());
-        (LivePlayer? ada, _) = svc.Join(game.JoinCode, "Ada");
-        svc.Start(game.JoinCode, host.Id);
+        (LiveGame game, GamePlayer host) = svc.CreateGame("Host", Deck(), null);
+        (GamePlayer? ada, _) = svc.Join(game.JoinCode, "Ada", null);
+        svc.Start(game.JoinCode);
 
-        string? error = svc.SubmitAnswer(game.JoinCode, ada!.Id, questionIndex: 2, optionIndex: 0);
+        string? error = svc.SubmitMultipleChoiceAnswer(game.JoinCode, ada!.IntlGameId!, game.Deck.Questions[1], 0);
 
         Assert.Contains("no longer on screen", error);
         Assert.Equal(0, ada.Score);
@@ -161,10 +148,10 @@ public class GameServiceTests
     public void Answering_before_the_game_starts_is_rejected()
     {
         GameService svc = NewService();
-        (LiveGame game, _) = svc.CreateGame("Host", Deck());
-        (LivePlayer? ada, _) = svc.Join(game.JoinCode, "Ada");
+        (LiveGame game, _) = svc.CreateGame("Host", Deck(), null);
+        (GamePlayer? ada, _) = svc.Join(game.JoinCode, "Ada", null);
 
-        string? error = svc.SubmitAnswer(game.JoinCode, ada!.Id, 0, 0);
+        string? error = svc.SubmitMultipleChoiceAnswer(game.JoinCode, ada!.IntlGameId!, game.Deck.Questions[0], 0);
 
         Assert.Contains("closed", error);
     }
@@ -173,11 +160,11 @@ public class GameServiceTests
     public void A_wrong_answer_is_recorded_but_scores_zero()
     {
         GameService svc = NewService();
-        (LiveGame game, LivePlayer host) = svc.CreateGame("Host", Deck());
-        (LivePlayer? ada, _) = svc.Join(game.JoinCode, "Ada");
-        svc.Start(game.JoinCode, host.Id);
+        (LiveGame game, GamePlayer host) = svc.CreateGame("Host", Deck(), null);
+        (GamePlayer? ada, _) = svc.Join(game.JoinCode, "Ada", null);
+        svc.Start(game.JoinCode);
 
-        svc.SubmitAnswer(game.JoinCode, ada!.Id, 0, optionIndex: 1);
+        svc.SubmitMultipleChoiceAnswer(game.JoinCode, ada!.IntlGameId!, game.Deck.Questions[0], optionIndex: 1);
 
         Assert.True(ada.HasAnswered(0));
         Assert.False(ada.Answers[0].IsCorrect);
@@ -188,14 +175,14 @@ public class GameServiceTests
     public void Question_closes_early_once_everyone_has_answered()
     {
         GameService svc = NewService();
-        (LiveGame game, LivePlayer host) = svc.CreateGame("Host", Deck());
-        (LivePlayer? ada, _) = svc.Join(game.JoinCode, "Ada");
-        svc.Start(game.JoinCode, host.Id);
+        (LiveGame game, GamePlayer host) = svc.CreateGame("Host", Deck(), null);
+        (GamePlayer? ada, _) = svc.Join(game.JoinCode, "Ada", null);
+        svc.Start(game.JoinCode);
 
-        svc.SubmitAnswer(game.JoinCode, host.Id, 0, 0);
+        svc.SubmitMultipleChoiceAnswer(game.JoinCode, ada!.IntlGameId!, game.Deck.Questions[0], 0);
         Assert.Equal(GamePhase.Question, game.Phase);
 
-        svc.SubmitAnswer(game.JoinCode, ada!.Id, 0, 0);
+        svc.SubmitMultipleChoiceAnswer(game.JoinCode, ada!.IntlGameId!, game.Deck.Questions[0], 0);
 
         // Nobody left to wait for, so no one stares at a dead timer.
         Assert.Equal(GamePhase.Reveal, game.Phase);
@@ -205,8 +192,8 @@ public class GameServiceTests
     public void Tick_advances_question_then_reveal_then_completes()
     {
         GameService svc = NewService();
-        (LiveGame game, LivePlayer host) = svc.CreateGame("Host", Deck(questions: 2, seconds: 20));
-        svc.Start(game.JoinCode, host.Id);
+        (LiveGame game, GamePlayer host) = svc.CreateGame("Host", Deck(questions: 2, seconds: 20), null);
+        svc.Start(game.JoinCode);
 
         DateTime t0 = DateTime.UtcNow;
 
@@ -240,13 +227,13 @@ public class GameServiceTests
     public void Scoreboard_ranks_by_score_descending()
     {
         GameService svc = NewService();
-        (LiveGame game, LivePlayer host) = svc.CreateGame("Host", Deck());
-        (LivePlayer? ada, _) = svc.Join(game.JoinCode, "Ada");
-        (LivePlayer? bob, _) = svc.Join(game.JoinCode, "Bob");
+        (LiveGame game, GamePlayer host) = svc.CreateGame("Host", Deck(), null);
+        (GamePlayer? ada, _) = svc.Join(game.JoinCode, "Ada", null);
+        (GamePlayer? bob, _) = svc.Join(game.JoinCode, "Bob", null);
 
-        svc.Start(game.JoinCode, host.Id);
-        svc.SubmitAnswer(game.JoinCode, ada!.Id, 0, 0);   // correct
-        svc.SubmitAnswer(game.JoinCode, bob!.Id, 0, 1);   // wrong
+        svc.Start(game.JoinCode);
+        svc.SubmitMultipleChoiceAnswer(game.JoinCode, ada!.IntlGameId!, game.Deck.Questions[0], 0);   // correct
+        svc.SubmitMultipleChoiceAnswer(game.JoinCode, bob!.IntlGameId!, game.Deck.Questions[0], 1);   // wrong
 
         IReadOnlyList<ScoreEntry> board = svc.Scoreboard(game);
 
@@ -268,7 +255,7 @@ public class GameServiceTests
     public void Stale_games_are_pruned_and_fresh_ones_kept()
     {
         GameService svc = NewService();
-        (LiveGame game, _) = svc.CreateGame("Host", Deck());
+        (LiveGame game, _) = svc.CreateGame("Host", Deck(), null);
 
         Assert.Equal(0, svc.PruneStale(DateTime.UtcNow, TimeSpan.FromHours(4)));
         Assert.NotNull(svc.Find(game.JoinCode));
@@ -281,11 +268,11 @@ public class GameServiceTests
     public void Blank_nicknames_fall_back_rather_than_creating_an_unnamed_player()
     {
         GameService svc = NewService();
-        (LiveGame game, LivePlayer host) = svc.CreateGame("   ", Deck());
+        (LiveGame game, GamePlayer host) = svc.CreateGame("   ", Deck(), null);
 
         Assert.Equal("Host", host.Name);
 
-        (LivePlayer? guest, _) = svc.Join(game.JoinCode, "   ");
+        (GamePlayer? guest, _) = svc.Join(game.JoinCode, "   ", null);
         Assert.Equal("Player", guest!.Name);
     }
 }
