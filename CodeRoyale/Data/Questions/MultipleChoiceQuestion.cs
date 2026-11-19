@@ -37,4 +37,36 @@ public class MultipleChoiceQuestion : Question
     /// </summary>
     /// <remarks>This should usually be <see langword="false"/> for true and false questions so they stay in the same order.</remarks>
     public bool? RandomizeAnswers { get; set; }
+
+    public static MultipleChoiceAnswer[] GetDefaultAnswers()
+    {
+        int correct = Random.Shared.Next(0, 4);
+        return 
+        [
+            new MultipleChoiceAnswer
+            {
+                Index = 0,
+                Text = "A",
+                IsCorrect = correct == 0
+            },
+            new MultipleChoiceAnswer
+            {
+                Index = 1,
+                Text = "B",
+                IsCorrect = correct == 1
+            },
+            new MultipleChoiceAnswer
+            {
+                Index = 2,
+                Text = "C",
+                IsCorrect = correct == 2
+            },
+            new MultipleChoiceAnswer
+            {
+                Index = 3,
+                Text = "D",
+                IsCorrect = correct == 3
+            }
+        ];
+    }
 }

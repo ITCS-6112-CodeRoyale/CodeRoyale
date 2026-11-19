@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
+using System.Text.RegularExpressions;
 
 namespace CodeRoyale.Data.Questions;
 
@@ -9,6 +10,10 @@ namespace CodeRoyale.Data.Questions;
 public class CodeEntryRegexTest : CodeEntryTest
 {
     public const int MaxPatternLength = 512;
+
+    internal static readonly TimeSpan RegexTimeout = TimeSpan.FromSeconds(0.1d);
+
+    public const RegexOptions DefaultRegexOptions = RegexOptions.IgnoreCase | RegexOptions.ExplicitCapture | RegexOptions.Singleline | RegexOptions.NonBacktracking;
 
     public override CodeEntryTestType Type
     {
@@ -33,4 +38,10 @@ public class CodeEntryRegexTest : CodeEntryTest
     /// </summary>
     [DefaultValue(true)]
     public bool ExcludeLiterals { get; set; } = true;
+
+    /// <summary>
+    /// Options for regex parsing.
+    /// </summary>
+    [DefaultValue(DefaultRegexOptions)]
+    public RegexOptions RegexFlags { get; set; } = DefaultRegexOptions;
 }

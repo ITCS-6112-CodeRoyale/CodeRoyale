@@ -1,0 +1,106 @@
+﻿<div class="card">
+    
+    <div class="card-body">
+        
+        <div class="mb-3" title="Description visible to players when the test @(IsCorrect ? "fails" : "passes").">
+            
+            <input type="text" id="@_descId" @onchange="e => Test.Description = e.Value?.ToString() ?? string.Empty" value="@Test.Description" maxlength="@CodeEntryTest.MaxDescriptionLength" class="form-control" />
+            <label for="@_descId" class="form-label">Description</label>
+
+        </div>
+        
+        <div class="mb-3" title="Tests with the same OR-group number will use a logical 'OR' operation instead of 'AND'. 0 is ignored.">
+            
+            <input type="number" id="@_orGroupId" @onchange="e => Test.OrGroup = int.TryParse(e.Value?.ToString(), out int v) && v > 0 ? v : 0" value="@Test.OrGroup" maxlength="@CodeEntryTest.MaxDescriptionLength" class="form-control" />
+            <label for="@_orGroupId" class="form-label">OR-Group</label>
+
+        </div>
+        
+        <div class="mb-3" title="Code inserted above the user-submitted code.">
+
+            <textarea id="@_preTestId" @onchange="OnPreTestChanged" rows="12" cols="48" maxlength="@CodeEntryUnitTest.MaxPreTestLength"></textarea>
+            <label for="@_preTestId" class="form-label">Pre-Test</label>
+
+        </div>
+        
+        <div class="mb-3" title="Code inserted below the user-submitted code.">
+            
+            <textarea id="@_postTestId" @onchange="OnPostTestChanged" rows="12" cols="48" maxlength="@CodeEntryUnitTest.MaxPostTestLength"></textarea>
+            <label for="@_postTestId" class="form-label">Post-Test</label>
+
+        </div>
+
+        <button class="btn btn-danger" @onclick="DeleteAsync">Delete</button>
+
+    </div>
+
+</div>
+
+@code {
+
+    private string? _preTestId;
+    private string? _postTestId;
+    private string? _orGroupId;
+    private string? _descId;
+
+    [Parameter]
+    public required CodeEntryQuestion Question { get; set; }
+
+    [Parameter]
+    public required CodeEntryUnitTest Test { get; set; }
+
+    [Parameter]
+    public required bool IsCorrect { get; set; }
+
+    [Parameter]
+    public EventCallback<CodeEntryUnitTest> OnDeleted { get; set; }
+
+    private void OnPreTestChanged(ChangeEventArgs e)
+    {
+        string? preTest = e.Value?.ToString();
+        if (string.IsNullOrEmpty(preTest))
+        {
+            Test.PreTest = null;
+        }
+        else
+        {
+            Test.PreTest = preTest;
+        }
+    }
+
+    private void OnPostTestChanged(ChangeEventArgs e)
+    {
+        string? preTest = e.Value?.ToString();
+        if (string.IsNullOrEmpty(preTest))
+        {
+            Test.PostTest = string.Empty;
+        }
+        else
+        {
+            Test.PostTest = preTest;
+        }
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (IsCorrect)
+        {
+            _preTestId = $"CEQ_{Question.Index}_Correct_PreTest_{Test.Index}";
+            _postTestId = $"CEQ_{Question.Index}_Correct_PostTest_{Test.Index}";
+            _orGroupId = $"CEQ_{Question.Index}_Correct_OrGroup_{Test.Index}";
+            _descId = $"CEQ_{Question.Index}_Correct_Desc_{Test.Index}";
+        }
+        else
+        {
+            _preTestId = $"CEQ_{Question.Index}_Incorrect_PreTest_{Test.Index}";
+            _postTestId = $"CEQ_{Question.Index}_Incorrect_PostTest_{Test.Index}";
+            _orGroupId = $"CEQ_{Question.Index}_Incorrect_OrGroup_{Test.Index}";
+            _descId = $"CEQ_{Question.Index}_Incorrect_Desc_{Test.Index}";
+        }
+    }
+
+    private Task DeleteAsync()
+    {
+        return OnDeleted.InvokeAsync(Test);
+    }
+}

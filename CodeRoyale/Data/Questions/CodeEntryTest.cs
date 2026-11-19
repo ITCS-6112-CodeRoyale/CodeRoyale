@@ -13,6 +13,11 @@ public abstract class CodeEntryTest
     public int Id { get; set; }
 
     /// <summary>
+    /// 0-based index of this test.
+    /// </summary>
+    public required byte Index { get; set; }
+
+    /// <summary>
     /// Tests with the same value in this column will be considered to be a part of the same group of tests that will be evaluated as an 'OR' instead of an 'AND'.
     /// </summary>
     /// <remarks>Ignored if <c>0</c>.</remarks>

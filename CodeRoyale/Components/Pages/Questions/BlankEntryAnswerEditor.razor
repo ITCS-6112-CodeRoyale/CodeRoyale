@@ -1,0 +1,172 @@
+﻿@using System.Text.RegularExpressions
+
+<div class="card">
+    
+    <div class="card-body">
+        
+        <input type="text" id="@_regexId" @oninput="OnRegexValueChanged" value="@Answer.CorrectRegex" maxlength="@BlankEntryAnswer.MaxCorrectRegexLength" class="form-control" />
+        <label for="@_regexId" class="form-label">Regular Expression</label>
+
+        @if (_error != null)
+        {
+            <p class="danger-text">Invalid RegEx: @_error</p>
+        }
+
+        @if (_regex != null)
+        {
+            <h4>Test a submission</h4>
+
+            <textarea @oninput="OnTestValueChanged" rows="3" cols="32"></textarea>
+            
+            @if (!string.IsNullOrEmpty(TestValue))
+            {
+                @if (_testTimeout)
+                {
+                    <p class="text-success">RegEx evaluation timed out, it might be too complex.</p>
+                }
+                else if (_testMatches)
+                {
+                    <p class="text-success">Matches 👌</p>
+                }
+                else
+                {
+                    <p class="text-danger">No match 😨</p>
+                }
+            }
+        }
+        
+        <div class="form-check mb-3">
+            
+            @if (IgnoreCase)
+            {
+                <input class="form-check-input" type="checkbox" id="@_checkId" @onchange="() => IgnoreCase = false" checked/>
+            }
+            else
+            {
+                <input class="form-check-input" type="checkbox" id="@_checkId" @onchange="() => IgnoreCase = true" />
+            }
+
+            <label class="form-check-label" for="@_checkId">Ignore Case?</label>
+
+        </div>
+
+        <button class="btn btn-danger" @onclick="DeleteAsync">Delete</button>
+
+    </div>
+</div>
+
+@code {
+
+    private string? _error;
+    private string? _regexId;
+    private string? _checkId;
+    private bool _testMatches, _testTimeout;
+    private bool _ignoreCase;
+    private Regex? _regex;
+
+    [Parameter]
+    public required BlankEntryQuestion Question { get; set; }
+
+    [Parameter]
+    public required BlankEntryAnswer Answer { get; set; }
+
+    [Parameter]
+    public EventCallback<BlankEntryAnswer> OnDeleted { get; set; }
+
+    private string? TestValue
+    {
+        get;
+        set
+        {
+            field = value;
+            UpdateTest();
+        }
+    }
+
+    private bool IgnoreCase
+    {
+        get => _ignoreCase;
+        set
+        {
+            _ignoreCase = value;
+            if (value)
+                Answer.RegexFlags |= RegexOptions.IgnoreCase;
+            else
+                Answer.RegexFlags &= ~RegexOptions.IgnoreCase;
+            if (_regex != null)
+            {
+                _regex = new Regex(_regex.ToString(), Answer.RegexFlags & ~RegexOptions.Compiled, BlankEntryAnswer.RegexTimeout);
+            }
+            UpdateTest();
+        }
+    }
+
+    private void UpdateTest()
+    {
+        try
+        {
+            if (_regex == null || string.IsNullOrEmpty(TestValue))
+            {
+                _testMatches = false;
+            }
+            else
+            {
+                _testMatches = _regex.IsMatch(TestValue.AsSpan().Trim());
+            }
+
+            _testTimeout = false;
+        }
+        catch (RegexMatchTimeoutException)
+        {
+            _testTimeout = true;
+        }
+    }
+
+    private void OnTestValueChanged(ChangeEventArgs args)
+    {
+        TestValue = args.Value?.ToString();
+    }
+
+    private void OnRegexValueChanged(ChangeEventArgs args)
+    {
+        string? regex = args.Value?.ToString();
+        _error = null;
+
+        UpdateRegex(regex);
+        UpdateTest();
+
+        Answer.CorrectRegex = regex ?? string.Empty;
+    }
+
+    private void UpdateRegex(string? regex)
+    {
+        _regex = null;
+        if (string.IsNullOrEmpty(regex))
+            return;
+
+        try
+        {
+            _regex = new Regex(regex, Answer.RegexFlags & ~RegexOptions.Compiled, BlankEntryAnswer.RegexTimeout);
+            _error = null;
+        }
+        catch (RegexParseException ex)
+        {
+            _error = ex.Message;
+        }
+    }
+
+    protected override void OnParametersSet()
+    {
+        _ignoreCase = (Answer.RegexFlags & RegexOptions.IgnoreCase) != 0;
+
+        _regexId = $"BEQ_{Question.Index}_RegexValue_{Answer.Index}";
+        _checkId = $"BEQ_{Question.Index}_IgnoreCase_{Answer.Index}";
+        
+        UpdateRegex(Answer.CorrectRegex);
+    }
+
+    private Task DeleteAsync()
+    {
+        return OnDeleted.InvokeAsync(Answer);
+    }
+}

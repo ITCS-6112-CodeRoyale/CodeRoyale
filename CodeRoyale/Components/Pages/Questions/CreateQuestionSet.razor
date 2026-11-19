@@ -1,0 +1,127 @@
+﻿@page "/questions/new"
+
+@using System.ComponentModel.DataAnnotations
+
+@inject ApplicationUserProvider UserProvider
+@inject ApplicationDbContext DbContext
+@inject NavigationManager NavigationManager
+
+<PageTitle>Create Question Set | CodeRoyale</PageTitle>
+
+<h1>Create a question set</h1>
+
+@if (_languages == null || _user == null)
+{
+    return;
+}
+
+<div class="row">
+    <div class="col-xl-6">
+        <EditForm Model="Input" FormName="set" OnValidSubmit="OnValidSubmitAsync" method="post">
+            <DataAnnotationsValidator />
+            <ValidationSummary class="text-danger" role="alert" />
+            <div class="form-floating mb-3">
+                <InputText @bind-Value="Input.Name" id="Input.Name" class="form-control" placeholder="Display name of the set" maxlength="@QuestionSet.MaxNameLength" />
+                <label for="Input.Name" class="form-label">Name</label>
+                <ValidationMessage For="() => Input.Name" class="text-danger" />
+            </div>
+            <div class="form-floating mb-3">
+                <InputText @bind-Value="Input.Description" id="Input.Description" class="form-control" placeholder="A short description of the set" maxlength="@QuestionSet.MaxDescLength" />
+                <label for="Input.Description" class="form-label">Description</label>
+                <ValidationMessage For="() => Input.Description" class="text-danger" />
+            </div>
+            <div class="form-floating mb-3">
+                <InputText @bind-Value="Input.SPQ" id="Input.SPQ" class="form-control" placeholder="30" type="number" />
+                <label for="Input.SPQ" class="form-label">Seconds per question</label>
+                <ValidationMessage For="() => Input.SPQ" class="text-danger" />
+            </div>
+            <div class="form-floating mb-3">
+                <InputSelect @bind-Value="Input.Language" id="Input.Language" class="form-select">
+                    @foreach (CodeLanguage language in _languages)
+                    {
+                        <option value="@language.Id">@language.DisplayName</option>
+                    }
+                </InputSelect>
+                <label for="Input.Language" class="form-label">Code Language</label>
+                <ValidationMessage For="() => Input.Language" class="text-danger" />
+                <p class="text-danger">This can not be changed later.</p>
+            </div>
+            <button type="submit" class="w-100 btn btn-lg btn-primary">Create</button>
+        </EditForm>
+    </div>
+</div>
+
+
+@code {
+
+    private ApplicationUser? _user;
+    private List<CodeLanguage>? _languages;
+
+    private InputModel Input { get; set; } = null!;
+
+    [SupplyParameterFromQuery(Name = "set")]
+    public int Set { get; set; }
+
+    [SupplyParameterFromQuery(Name = "rev")]
+    public int Rev { get; set; } = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Input ??= new InputModel();
+
+        _user = await UserProvider.GetLoggedInUserAsync();
+        if (_user == null)
+            return;
+
+
+        _languages = await DbContext.Languages.OrderBy(x => x.LanguageCode).ToListAsync();
+    }
+
+    private async Task OnValidSubmitAsync()
+    {
+        if (_user == null || _languages == null)
+        {
+            return;
+        }
+
+        CodeLanguage? language = _languages.Find(x => x.Id == Input.Language);
+        if (language == null)
+            return;
+
+        QuestionSet set = new QuestionSet
+        {
+            Id = 0,
+            Revision = 0,
+            Language = language,
+            Name = Input.Name ?? "Question Set",
+            Description = string.IsNullOrWhiteSpace(Input.Description) ? null : Input.Description,
+            SecondsPerQuestion = double.Parse(Input.SPQ),
+            UserId = _user.Id,
+            Questions = []
+        };
+
+        DbContext.QuestionSets.Add(set);
+        await DbContext.SaveChangesAsync();
+
+        NavigationManager.NavigateTo($"/questions/edit?set={set.Id}&rev={set.Revision}");
+    }
+
+    private sealed class InputModel
+    {
+        [Required]
+        [Display(Name = "Name")]
+        public string? Name { get; set; }
+
+        [Display(Name = "Description")]
+        public string? Description { get; set; }
+
+        [Required]
+        [Display(Name = "Language")]
+        public int Language { get; set; }
+
+        [Range(1d, 300d, ErrorMessage = "Choose a value between 1 second and 5 minutes.")]
+        [Required]
+        [Display(Name = "Seconds per question")]
+        public string SPQ { get; set; } = "30";
+    }
+}

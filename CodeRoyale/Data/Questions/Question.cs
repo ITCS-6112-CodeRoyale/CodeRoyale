@@ -1,5 +1,4 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Query;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -32,6 +31,12 @@ public abstract class Question
     /// </summary>
     [DefaultValue(1d)]
     public double Score { get; set; } = 1;
+
+    /// <summary>
+    /// Overrides the amount of time given for this question.
+    /// </summary>
+    [DefaultValue(null)]
+    public double? SecondsDuration { get; set; }
 
     /// <summary>
     /// Includes all answer lists for all question types.

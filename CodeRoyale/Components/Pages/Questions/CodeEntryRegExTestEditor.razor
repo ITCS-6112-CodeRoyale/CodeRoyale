@@ -1,0 +1,242 @@
+﻿@using System.Text.RegularExpressions
+
+<div class="card">
+    
+    <div class="card-body">
+        
+        <div class="mb-3" title="Description visible to players when the test @(IsCorrect ? "fails" : "passes").">
+            
+            <input type="text" id="@_descId" @onchange="e => Test.Description = e.Value?.ToString() ?? string.Empty" value="@Test.Description" maxlength="@CodeEntryTest.MaxDescriptionLength" class="form-control" />
+            <label for="@_descId" class="form-label">Description</label>
+
+        </div>
+        
+        <div class="mb-3" title="Tests with the same OR-group number will use a logical 'OR' operation instead of 'AND'. 0 is ignored.">
+            
+            <input type="number" id="@_orGroupId" @onchange="e => Test.OrGroup = int.TryParse(e.Value?.ToString(), out int v) && v > 0 ? v : 0" value="@Test.OrGroup" maxlength="@CodeEntryTest.MaxDescriptionLength" class="form-control" />
+            <label for="@_orGroupId" class="form-label">OR-Group</label>
+
+        </div>
+
+        <div class="mb-3">
+        
+            <input type="text" id="@_regexId" @oninput="OnRegexValueChanged" value="@Test.Pattern" maxlength="@CodeEntryRegexTest.MaxPatternLength" class="form-control" />
+            <label for="@_regexId" class="form-label">Regular Expression</label>
+
+        </div>
+
+        @if (_error != null)
+        {
+            <p class="danger-text">Invalid RegEx: @_error</p>
+        }
+
+        @if (_regex != null)
+        {
+            <h4>Test a submission</h4>
+
+            <textarea @oninput="OnTestValueChanged" rows="3" cols="32"></textarea>
+            
+            @if (!string.IsNullOrEmpty(TestValue))
+            {
+                @if (_testTimeout)
+                {
+                    <p class="text-danger">RegEx evaluation timed out, it might be too complex.</p>
+                }
+                else if (_testMatches)
+                {
+                    <p class="text-success">Matches 👌</p>
+                }
+                else
+                {
+                    <p class="text-danger">No match 😨</p>
+                }
+
+                if (Test.ExcludeLiterals || Test.ExcludeComments)
+                {
+                    <p class="text-secondary">Note that comment and literal exclusion doesn't run here.</p>
+                }
+            }
+        }
+        
+        <div class="form-check mb-3">
+            
+            @if (IgnoreCase)
+            {
+                <input class="form-check-input" type="checkbox" id="@_checkId" @onchange="() => IgnoreCase = false" checked/>
+            }
+            else
+            {
+                <input class="form-check-input" type="checkbox" id="@_checkId" @onchange="() => IgnoreCase = true" />
+            }
+
+            <label class="form-check-label" for="@_checkId">Ignore Case?</label>
+
+        </div>
+        
+        <div class="form-check mb-3" title="Exclude single-line and multi-line comments in code.">
+            
+            @if (Test.ExcludeComments)
+            {
+                <input class="form-check-input" type="checkbox" id="@_checkId" @onchange="() => Test.ExcludeComments = false" checked />
+            }
+            else
+            {
+                <input class="form-check-input" type="checkbox" id="@_checkId" @onchange="() => Test.ExcludeComments = true" />
+            }
+
+            <label class="form-check-label" for="@_checkId">Exclude Comments?</label>
+
+        </div>
+        
+        <div class="form-check mb-3" title="Exclude constant strings and characters, which could be used to cheat a test.">
+            
+            @if (Test.ExcludeLiterals)
+            {
+                <input class="form-check-input" type="checkbox" id="@_checkId" @onchange="() => Test.ExcludeLiterals = false" checked />
+            }
+            else
+            {
+                <input class="form-check-input" type="checkbox" id="@_checkId" @onchange="() => Test.ExcludeLiterals = true" />
+            }
+
+            <label class="form-check-label" for="@_checkId">Exclude Literals?</label>
+
+        </div>
+
+        <button class="btn btn-danger" @onclick="DeleteAsync">Delete</button>
+
+    </div>
+</div>
+
+@code {
+
+    private string? _error;
+    private string? _regexId;
+    private string? _checkId;
+    private string? _orGroupId;
+    private string? _descId;
+    private bool _testMatches, _testTimeout;
+    private bool _ignoreCase;
+    private Regex? _regex;
+
+    [Parameter]
+    public required CodeEntryQuestion Question { get; set; }
+
+    [Parameter]
+    public required CodeEntryRegexTest Test { get; set; }
+
+    [Parameter]
+    public required bool IsCorrect { get; set; }
+
+    [Parameter]
+    public EventCallback<CodeEntryRegexTest> OnDeleted { get; set; }
+
+    private string? TestValue
+    {
+        get;
+        set
+        {
+            field = value;
+            UpdateTest();
+        }
+    }
+
+    private bool IgnoreCase
+    {
+        get => _ignoreCase;
+        set
+        {
+            _ignoreCase = value;
+            if (value)
+                Test.RegexFlags |= RegexOptions.IgnoreCase;
+            else
+                Test.RegexFlags &= ~RegexOptions.IgnoreCase;
+            if (_regex != null)
+            {
+                _regex = new Regex(_regex.ToString(), Test.RegexFlags & ~RegexOptions.Compiled, CodeEntryRegexTest.RegexTimeout);
+            }
+            UpdateTest();
+        }
+    }
+
+    private void UpdateTest()
+    {
+        try
+        {
+            if (_regex == null || string.IsNullOrEmpty(TestValue))
+            {
+                _testMatches = false;
+            }
+            else
+            {
+                _testMatches = _regex.IsMatch(TestValue.AsSpan().Trim());
+            }
+
+            _testTimeout = false;
+        }
+        catch (RegexMatchTimeoutException)
+        {
+            _testTimeout = true;
+        }
+    }
+
+    private void OnTestValueChanged(ChangeEventArgs args)
+    {
+        TestValue = args.Value?.ToString();
+    }
+
+    private void OnRegexValueChanged(ChangeEventArgs args)
+    {
+        string? regex = args.Value?.ToString();
+        _error = null;
+
+        UpdateRegex(regex);
+        UpdateTest();
+
+        Test.Pattern = regex ?? string.Empty;
+    }
+
+    private void UpdateRegex(string? regex)
+    {
+        _regex = null;
+        if (string.IsNullOrEmpty(regex))
+            return;
+
+        try
+        {
+            _regex = new Regex(regex, Test.RegexFlags & ~RegexOptions.Compiled, CodeEntryRegexTest.RegexTimeout);
+            _error = null;
+        }
+        catch (RegexParseException ex)
+        {
+            _error = ex.Message;
+        }
+    }
+
+    protected override void OnParametersSet()
+    {
+        _ignoreCase = (Test.RegexFlags & RegexOptions.IgnoreCase) != 0;
+
+        if (IsCorrect)
+        {
+            _regexId = $"CEQ_{Question.Index}_Correct_Pattern_{Test.Index}";
+            _checkId = $"CEQ_{Question.Index}_Correct_IgnoreCase_{Test.Index}";
+            _orGroupId = $"CEQ_{Question.Index}_Correct_OrGroup_{Test.Index}";
+            _descId = $"CEQ_{Question.Index}_Correct_Desc_{Test.Index}";
+        }
+        else
+        {
+            _regexId = $"CEQ_{Question.Index}_Incorrect_Pattern_{Test.Index}";
+            _checkId = $"CEQ_{Question.Index}_Incorrect_IgnoreCase_{Test.Index}";
+            _orGroupId = $"CEQ_{Question.Index}_Incorrect_OrGroup_{Test.Index}";
+            _descId = $"CEQ_{Question.Index}_Incorrect_Desc_{Test.Index}";
+        }
+
+        UpdateRegex(Test.Pattern);
+    }
+
+    private Task DeleteAsync()
+    {
+        return OnDeleted.InvokeAsync(Test);
+    }
+}

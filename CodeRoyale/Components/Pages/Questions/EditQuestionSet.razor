@@ -1,0 +1,152 @@
+﻿@page "/questions/edit"
+
+@using System.ComponentModel.DataAnnotations
+@using System.Globalization
+@using CodeRoyale.Live
+
+@layout QuestionsLayout
+
+@inject ApplicationUserProvider UserProvider
+@inject ApplicationDbContext DbContext
+@inject NavigationManager NavigationManager
+@inject QuestionEditorSessionStateManager State
+
+@if (_set == null || _user == null)
+{
+    <PageTitle>Edit Question Set | CodeRoyale</PageTitle>
+    return;
+}
+
+<PageTitle>Edit @_set.Name | CodeRoyale</PageTitle>
+
+<h1>Edit @_set.Name</h1>
+
+@if (_set.Revision != 0)
+{
+    <p>Revision @_set.Revision</p>
+}
+
+<div class="row">
+    <div class="col-xl-6">
+        <EditForm Model="Input" FormName="set" OnValidSubmit="OnValidSubmitAsync" method="post">
+            <DataAnnotationsValidator />
+            <ValidationSummary class="text-danger" role="alert" />
+            <div class="form-floating mb-3">
+                <InputText @bind-Value="Input.Name" id="Input.Name" class="form-control" placeholder="Display name of the set" maxlength="@QuestionSet.MaxNameLength" />
+                <label for="Input.Name" class="form-label">Name</label>
+                <ValidationMessage For="() => Input.Name" class="text-danger" />
+            </div>
+            <div class="form-floating mb-3">
+                <InputText @bind-Value="Input.Description" id="Input.Description" class="form-control" placeholder="A short description of the set" maxlength="@QuestionSet.MaxDescLength" />
+                <label for="Input.Description" class="form-label">Description</label>
+                <ValidationMessage For="() => Input.Description" class="text-danger" />
+            </div>
+            <div class="form-floating mb-3">
+                <InputText @bind-Value="Input.SPQ" id="Input.SPQ" class="form-control" placeholder="30" type="number" />
+                <label for="Input.SPQ" class="form-label">Seconds per question</label>
+                <ValidationMessage For="() => Input.SPQ" class="text-danger" />
+            </div>
+            <button type="submit" class="w-100 btn btn-lg btn-primary">Save</button>
+        </EditForm>
+    </div>
+</div>
+
+
+@code {
+
+    private ApplicationUser? _user;
+    private QuestionSet? _set;
+
+    private InputModel Input { get; set; } = null!;
+
+    [SupplyParameterFromQuery(Name = "set")]
+    public int Set { get; set; }
+
+    [SupplyParameterFromQuery(Name = "rev")]
+    public int Rev { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Input ??= new InputModel();
+
+        _user = await UserProvider.GetLoggedInUserAsync();
+        if (_user == null)
+            return;
+
+        if (Set == 0 && Rev == 0 && State.Set != null)
+        {
+            Set = State.Set.Id;
+            Rev = State.Set.Revision;
+        }
+
+        _set = await DbContext.QuestionSets.FirstOrDefaultAsync(s => s.User == _user && s.Id == Set && s.Revision == Rev);
+        if (_set == null)
+        {
+            NavigationManager.NavigateTo("/questions");
+            return;
+        }
+
+        State.Set = _set;
+        Input.Name = _set.Name;
+        Input.Description = _set.Description;
+        Input.SPQ = _set.SecondsPerQuestion.ToString(CultureInfo.CurrentUICulture);
+    }
+
+    private async Task OnValidSubmitAsync()
+    {
+        if (_set == null || _user == null || _set.UserId != _user.Id)
+        {
+            return;
+        }
+
+        bool anyChanges = false;
+
+        if (!string.IsNullOrEmpty(Input.Name) && Input.Name != null && Input.Name != _set.Name)
+        {
+            _set.Name = Input.Name;
+            anyChanges = true;
+        }
+
+        if (!string.IsNullOrEmpty(Input.Description))
+        {
+            if (Input.Description != _set.Description)
+            {
+                _set.Description = Input.Description;
+                anyChanges = true;
+            }
+        }
+        else
+        {
+            _set.Description = null;
+        }
+
+        if (double.TryParse(Input.SPQ, CultureInfo.CurrentUICulture, out double d) && Math.Abs(d - _set.SecondsPerQuestion) > 0.01d)
+        {
+            _set.SecondsPerQuestion = d;
+            anyChanges = true;
+        }
+
+        if (!anyChanges)
+        {
+            return;
+        }
+
+        DbContext.QuestionSets.Update(_set);
+        await DbContext.SaveChangesAsync();
+    }
+
+    private sealed class InputModel
+    {
+        [Required]
+        [Display(Name = "Name")]
+        public string? Name { get; set; }
+
+        [Display(Name = "Description")]
+        public string? Description { get; set; }
+
+        [Range(1d, 300d, ErrorMessage = "Choose a value between 1 second and 5 minutes.")]
+        [Required]
+        [Display(Name = "Seconds per question")]
+        public string? SPQ { get; set; }
+    }
+}

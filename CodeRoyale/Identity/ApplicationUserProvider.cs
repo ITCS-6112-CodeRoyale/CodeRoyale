@@ -16,6 +16,7 @@ public sealed class ApplicationUserProvider : IDisposable
     private ApplicationUser? _user;
     private bool _hasUser;
     private int _hasEvent;
+    private string? _userId;
 
     public ApplicationUserProvider(ApplicationDbContext dbContext, AuthenticationStateProvider authStateProvider, ILogger<ApplicationUserProvider> logger)
     {
@@ -62,6 +63,29 @@ public sealed class ApplicationUserProvider : IDisposable
         }
     }
 
+    public async Task<ApplicationUser?> UpdateUserAsync(Action<ApplicationUser> modification, CancellationToken token = default)
+    {
+        _ = await GetLoggedInUserAsync(token);
+        string? uid = _userId;
+        if (uid == null)
+        {
+            return null;
+        }
+
+        ApplicationUser? user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == uid, token);
+        if (user == null)
+        {
+            return null;
+        }
+
+        modification(user);
+
+        await _dbContext.SaveChangesAsync(token);
+        _user = user;
+        _hasUser = true;
+        return user;
+    }
+
     private async Task<ApplicationUser?> UpdateSavedState(AuthenticationState state, CancellationToken token = default)
     {
         ClaimsPrincipal? userPrincipal = state?.User;
@@ -69,7 +93,12 @@ public sealed class ApplicationUserProvider : IDisposable
         ApplicationUser? user = null;
         if (!string.IsNullOrEmpty(id))
         {
+            _userId = id;
             user = await _dbContext.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == id, token);
+        }
+        else
+        {
+            _userId = null;
         }
 
         _user = user;

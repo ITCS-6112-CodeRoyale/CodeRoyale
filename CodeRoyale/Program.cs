@@ -44,6 +44,7 @@ builder.Services.AddScoped<IdentityRedirectManager>();
 builder.Services.AddScoped<AuthenticationStateProvider, IdentityRevalidatingAuthenticationStateProvider>();
 
 builder.Services.AddScoped<ApplicationUserProvider>();
+builder.Services.AddScoped<QuestionEditorSessionStateManager>();
 
 builder.Services.AddAuthentication(options =>
     {
@@ -60,7 +61,7 @@ string connectionString = builder.Configuration.GetConnectionString(ApplicationD
 
 ServerVersion version = await ServerVersion.AutoDetectAsync(connectionString);
 builder.Services.AddDbContext<ApplicationDbContext>(
-    opts => opts.UseMySql(connectionString, version)
+    opts => opts.UseMySql(connectionString, version, o => o.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery))
                 .UseAsyncSeeding(async (db, _, token) =>
                 {
                     List<CodeLanguage> languages = await db.Set<CodeLanguage>().ToListAsync();

@@ -1,0 +1,77 @@
+﻿<div class="card">
+    
+    <div class="card-body">
+        
+        <InputText id="@_textId" @bind-Value="@Text" maxlength="@MultipleChoiceAnswer.MaxTextLength" class="form-control" />
+        <label for="@_textId" class="form-label">Answer</label>
+
+        <div class="form-check mb-3">
+            
+            @if (_isCorrect)
+            {
+                <input class="form-check-input" type="checkbox" id="@_checkId" checked disabled />
+            }
+            else
+            {
+                <input class="form-check-input" type="checkbox" id="@_checkId" @onchange="OnClickedCorrectAsync" />
+            }
+
+            <label class="form-check-label" for="@_checkId">Is Correct?</label>
+
+        </div>
+
+        <button class="btn btn-danger" @onclick="DeleteAsync">Delete</button>
+
+    </div>
+
+</div>
+
+@code {
+
+    private string? _text;
+    private string? _textId;
+    private string? _checkId;
+    private bool _isCorrect;
+
+    [Parameter]
+    public required MultipleChoiceQuestion Question { get; set; }
+
+    [Parameter]
+    public required MultipleChoiceAnswer Answer { get; set; }
+
+    [Parameter]
+    public EventCallback<MultipleChoiceAnswer> OnDeleted { get; set; }
+
+    [Parameter]
+    public EventCallback<MultipleChoiceAnswer> OnCorrectChanged { get; set; }
+
+    private string? Text
+    {
+        get => _text;
+        set
+        {
+            _text = value;
+            Answer.Text = value ?? string.Empty;
+        }
+    }
+
+    protected override void OnParametersSet()
+    {
+        _text = Answer.Text;
+        _isCorrect = Answer.IsCorrect;
+
+        _textId = $"MCQ_{Question.Index}_TextValue_{Answer.Index}";
+        _checkId = $"MCQ_{Question.Index}_IsCorrect_{Answer.Index}";
+    }
+
+    private async Task OnClickedCorrectAsync(ChangeEventArgs e)
+    {
+        _isCorrect = true;
+        await OnCorrectChanged.InvokeAsync(Answer);
+    }
+
+    private Task DeleteAsync()
+    {
+        return OnDeleted.InvokeAsync(Answer);
+    }
+}

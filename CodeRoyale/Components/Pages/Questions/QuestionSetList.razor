@@ -1,0 +1,85 @@
+﻿@page "/questions"
+
+@inject ApplicationUserProvider UserProvider
+@inject ApplicationDbContext DbContext
+@inject NavigationManager NavigationManager
+
+<PageTitle>Question Sets | CodeRoyale</PageTitle>
+
+<h1>Question Sets</h1>
+
+@if (_sets == null || _user == null)
+{
+    return;
+}
+
+<h2 class="h5">Choose a deck to edit</h2>
+<NavLink href="/questions/new" class="btn btn-secondary">Or create a new set</NavLink>
+<hr />
+<div class="row g-3">
+    @foreach (QuestionSet set in _sets)
+    {
+        <div class="col-12 col-md-6 col-lg-4">
+            <div class="card h-100">
+                <div class="card-body d-flex flex-column">
+                    <h3 class="card-title h6">@set.Name</h3>
+                    @if (!string.IsNullOrEmpty(set.Description))
+                    {
+                        <p class="card-text small text-muted flex-grow-1">@set.Description</p>
+                    }
+
+                    @if (set.UserId == null)
+                    {
+                        <p class="card-text small text-muted">Note: This is a built-in set and can't be edited.</p>
+                    }
+                    else
+                    {
+                        <div class="container text-center">
+                            <div class="row">
+                            
+                                <button class="btn btn-primary col me-1" @onclick="() => EditSet(set)" >
+                                    Edit
+                                </button>
+                                <button class="btn btn-danger col ms-1" @onclick="() => DeleteSet(set)">
+                                    Delete
+                                </button>
+
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+
+    private ApplicationUser? _user;
+    private List<QuestionSet>? _sets;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _user = await UserProvider.GetLoggedInUserAsync();
+        await UpdateSets();
+    }
+
+    private async Task EditSet(QuestionSet set)
+    {
+        NavigationManager.NavigateTo($"/questions/edit?set={set.Id}&rev={set.Revision}");
+    }
+
+    private async Task DeleteSet(QuestionSet set)
+    {
+        DbContext.QuestionSets.Remove(set);
+        await DbContext.SaveChangesAsync();
+        await UpdateSets();
+    }
+
+    private async Task UpdateSets()
+    {
+        _sets = await DbContext.QuestionSets.Where(s => s.User == null || s.User == _user)
+            .OrderBy(s => s.User == null)
+            .ToListAsync();
+    }
+}

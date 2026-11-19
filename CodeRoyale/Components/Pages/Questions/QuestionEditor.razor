@@ -1,0 +1,404 @@
+﻿@using System.Globalization
+@if (_question == null)
+{
+    return;
+}
+
+<div class="card mb-3">
+
+    <div class="card-body">
+        
+        <h3>Details</h3>
+
+        <div>
+
+            <div class="form-floating mb-3">
+
+                <input @bind-value="@Question.Text" id="question-@_question.Id-text" class="form-control" placeholder="Question text" maxlength="@Question.MaxTextLength" type="text" />
+                <label for="question-@_question.Id-text" class="form-label">Question</label>
+
+            </div>
+
+            <div class="form-floating mb-3">
+
+                <input @bind-value="@Question.Score" id="question-@_question.Id-score" class="form-control" placeholder="1000" type="number" />
+                <label for="question-@_question.Id-score" class="form-label">Maximum Points</label>
+
+            </div>
+            
+
+            <div class="form-floating mb-3">
+
+                <input @bind-value="@SecondsDuration" id="question-@_question.Id-seconds" class="form-control" placeholder="@Set.SecondsPerQuestion.ToString(CultureInfo.CurrentUICulture)" type="number" />
+                <label for="question-@_question.Id-seconds" class="form-label">Override Time (seconds)</label>
+
+            </div>
+            
+            @if (_question.Id == 0) // new question
+            {
+                <div class="form-floating mb-3">
+
+                    <select name="Type" id="question-@_question.Id-type" class="form-select" @onchange="OnTypeChanged">
+                        <option value="1" selected>Multiple Choice</option>
+                        <option value="2">Code Entry</option>
+                        <option value="3">Blank Entry</option>
+                    </select>
+                    <label for="question-@_question.Id-type" class="form-label">Type</label>
+                    <p class="text-danger">This can not be changed later.</p>
+
+                </div>
+            }
+            
+            @switch (_question)
+            {
+                case MultipleChoiceQuestion mcq:
+                
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" @bind-value="OverrideRandomizeAnswers" id="question-@_question.Id-ora" />
+                        <label class="form-check-label" for="question-@_question.Id-ora">Override 'Randomize Answers'?</label>
+                    </div>
+
+                    @if (mcq.RandomizeAnswers.HasValue)
+                    {
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" @bind-value="RandomizeAnswers" id="question-@_question.Id-ra" />
+                            <label class="form-check-label" for="question-@_question.Id-ra">Randomize Answers?</label>
+                        </div>
+                    }
+                    
+                    <h4>@mcq.Answers.Count answer@(mcq.Answers.Count == 1 ? string.Empty : "s")</h4>
+
+                    foreach (MultipleChoiceAnswer answer in mcq.Answers)
+                    {
+                        <MultipleChoiceAnswerEditor Question="@mcq" Answer="@answer" OnDeleted="OnMCQAnswerDeleted" OnCorrectChanged="OnMCQCorrectUpdated" />
+                    }
+
+                    @if (mcq.Answers.Count < byte.MaxValue)
+                    {
+                        <button class="btn btn-primary mb-3 mt-3" @onclick="OnAddMCQAnswerClicked">Add Answer</button>
+                    }
+
+                    break;
+
+                case CodeEntryQuestion ceq:
+
+                    <div class="form-floating mb-3">
+                        <textarea @oninput="OnStartingCodeTyped" id="question-@_question.Id-startcode" class="form-control" rows="5" cols="45"></textarea>
+                        <label for="question-@_question.Id-startcode" class="form-label">Starting Code</label>
+                    </div>
+
+                    <h4>@ceq.CorrectTests.Count correct test@(ceq.CorrectTests.Count == 1 ? string.Empty : "s")</h4>
+                    <p>All of these tests must pass for the answer to be considered 'correct'.</p>
+
+                    <CodeEntryTestGroup Question="ceq" Tests="ceq.CorrectTests" IsCorrect="true" />
+                    
+                    @if (ceq.CorrectTests.Count < byte.MaxValue)
+                    {
+                        <div class="row mt-3">
+                            <button class="btn btn-primary mb-3 me-1" @onclick="OnAddCEQCorrectUnitTestClicked">Add Unit Test</button>
+                            <button class="btn btn-primary mb-3 ms-1" @onclick="OnAddCEQCorrectRegExTestClicked">Add RegEx Test</button>
+                        </div>
+                    }
+
+                    <h4>@ceq.IncorrectTests.Count incorrect test@(ceq.CorrectTests.Count == 1 ? string.Empty : "s")</h4>
+                    <p>All of these tests must fail for the answer to be considered 'correct'.</p>
+                    
+                    <CodeEntryTestGroup Question="ceq" Tests="ceq.IncorrectTests" IsCorrect="false" />
+                    
+                    @if (ceq.IncorrectTests.Count < byte.MaxValue)
+                    {
+                        <div class="row mt-3">
+                            <button class="btn btn-primary mb-3 me-1" @onclick="OnAddCEQIncorrectUnitTestClicked">Add Unit Test</button>
+                            <button class="btn btn-primary mb-3 ms-1" @onclick="OnAddCEQIncorrectRegExTestClicked">Add RegEx Test</button>
+                        </div>
+                    }
+
+                    break;
+
+                case BlankEntryQuestion beq:
+                    
+                    <h4>@beq.Answers.Count answer@(beq.Answers.Count == 1 ? string.Empty : "s")</h4>
+
+                    foreach (BlankEntryAnswer answer in beq.Answers)
+                    {
+                        <BlankEntryAnswerEditor Question="@beq" Answer="@answer" OnDeleted="OnBEQAnswerDeleted" />
+                    }
+
+                    @if (beq.Answers.Count < byte.MaxValue)
+                    {
+                        <button class="btn btn-primary mb-3 mt-3" @onclick="OnAddBEQAnswerClicked">Add Answer</button>
+                    }
+
+                    break;
+            }
+            
+            <button class="w-100 btn btn-lg btn-danger ms-1" @onclick="OnDeleteClickedAsync">@(_question.Id == 0 ? "Cancel" : "Delete")</button>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+@code {
+
+    private Question? _question;
+
+    [Parameter]
+    public required Question Question { get; set; }
+
+    [Parameter]
+    public required QuestionSet Set { get; set; }
+
+    [Parameter]
+    public EventCallback<Question> OnQuestionDeleted { get; set; }
+
+    private bool OverrideRandomizeAnswers
+    {
+        get => ((MultipleChoiceQuestion)_question!).RandomizeAnswers.HasValue;
+        set => ((MultipleChoiceQuestion)_question!).RandomizeAnswers = value ? false : null;
+    }
+
+    private bool RandomizeAnswers
+    {
+        get => ((MultipleChoiceQuestion)_question!).RandomizeAnswers.GetValueOrDefault();
+        set => ((MultipleChoiceQuestion)_question!).RandomizeAnswers = value;
+    }
+
+    private string SecondsDuration
+    {
+        get => _question!.SecondsDuration.HasValue ? _question.SecondsDuration.Value.ToString(CultureInfo.CurrentUICulture) : string.Empty;
+        set => _question!.SecondsDuration = double.TryParse(value, CultureInfo.CurrentUICulture, out double d) && d > 0 ? d : null;
+    }
+
+    protected override void OnParametersSet()
+    {
+        _question ??= Question;
+    }
+
+    private async Task OnDeleteClickedAsync()
+    {
+        await OnQuestionDeleted.InvokeAsync(_question);
+    }
+
+    private void OnMCQAnswerDeleted(MultipleChoiceAnswer answer)
+    {
+        if (_question is not MultipleChoiceQuestion mcq)
+            return;
+
+        int index = mcq.Answers.IndexOf(answer);
+        if (index < 0)
+            return;
+
+        mcq.Answers.RemoveAt(index);
+        foreach (MultipleChoiceAnswer a in mcq.Answers)
+        {
+            if (a.Index > index)
+                --a.Index;
+        }
+    }
+
+    private void OnMCQCorrectUpdated(MultipleChoiceAnswer answer)
+    {
+        if (_question is not MultipleChoiceQuestion mcq)
+            return;
+
+        foreach (MultipleChoiceAnswer a in mcq.Answers)
+        {
+            if (a != answer && a.IsCorrect)
+            {
+                a.IsCorrect = false;
+            }
+        }
+
+        answer.IsCorrect = true;
+        StateHasChanged();
+    }
+
+    private void OnAddMCQAnswerClicked()
+    {
+        if (_question is not MultipleChoiceQuestion mcq || mcq.Answers.Count >= byte.MaxValue)
+            return;
+
+        mcq.Answers.Add(new MultipleChoiceAnswer
+        {
+            Index = (byte)mcq.Answers.Count,
+            Text = string.Empty,
+            IsCorrect = false
+        });
+    }
+
+    private void OnBEQAnswerDeleted(BlankEntryAnswer answer)
+    {
+        if (_question is not BlankEntryQuestion beq)
+            return;
+
+        int index = beq.Answers.IndexOf(answer);
+        if (index < 0)
+            return;
+
+        beq.Answers.RemoveAt(index);
+        foreach (BlankEntryAnswer a in beq.Answers)
+        {
+            if (a.Index > index)
+                --a.Index;
+        }
+    }
+
+    private void OnStartingCodeTyped(ChangeEventArgs args)
+    {
+        if (_question is not CodeEntryQuestion ceq)
+            return;
+
+        string? code = args.Value?.ToString();
+        if (string.IsNullOrEmpty(code))
+            code = null;
+
+        ceq.StartingText = code;
+    }
+
+    private void OnAddBEQAnswerClicked()
+    {
+        if (_question is not BlankEntryQuestion beq || beq.Answers.Count >= byte.MaxValue)
+            return;
+
+        beq.Answers.Add(new BlankEntryAnswer
+        {
+            Index = (byte)beq.Answers.Count,
+            CorrectRegex = ".*"
+        });
+    }
+    
+    private void OnAddCEQCorrectUnitTestClicked()
+    {
+        if (_question is not CodeEntryQuestion ceq || ceq.CorrectTests.Count >= byte.MaxValue)
+            return;
+
+        ceq.CorrectTests.Add(new CodeEntryUnitTest
+        {
+            PostTest = string.Empty,
+            Description = string.Empty,
+            PreTest = null,
+            Index = (byte)ceq.CorrectTests.Count
+        });
+    }
+    
+    private void OnAddCEQCorrectRegExTestClicked()
+    {
+        if (_question is not CodeEntryQuestion ceq || ceq.CorrectTests.Count >= byte.MaxValue)
+            return;
+
+        ceq.CorrectTests.Add(new CodeEntryRegexTest
+        {
+            Pattern = ".*",
+            Description = string.Empty,
+            Index = (byte)ceq.CorrectTests.Count
+        });
+    }
+    
+    private void OnAddCEQIncorrectUnitTestClicked()
+    {
+        if (_question is not CodeEntryQuestion ceq || ceq.IncorrectTests.Count >= byte.MaxValue)
+            return;
+
+        ceq.IncorrectTests.Add(new CodeEntryUnitTest
+        {
+            PostTest = string.Empty,
+            Description = string.Empty,
+            PreTest = null,
+            Index = (byte)ceq.IncorrectTests.Count
+        });
+    }
+    
+    private void OnAddCEQIncorrectRegExTestClicked()
+    {
+        if (_question is not CodeEntryQuestion ceq || ceq.IncorrectTests.Count >= byte.MaxValue)
+            return;
+
+        ceq.IncorrectTests.Add(new CodeEntryRegexTest
+        {
+            Pattern = ".*",
+            Description = string.Empty,
+            Index = (byte)ceq.IncorrectTests.Count
+        });
+    }
+
+    private void ReplaceQuestion(Question newQuestion)
+    {
+        Question old = _question!;
+        _question = newQuestion;
+
+        int index = Set.Questions.IndexOf(old);
+        Set.Questions[index] = newQuestion;
+        StateHasChanged();
+    }
+
+    private void OnTypeChanged(ChangeEventArgs args)
+    {
+        if (_question == null)
+            return;
+
+        QuestionType type = (QuestionType)(int.Parse(args.Value!.ToString()!) - 1);
+        if (_question.Type == type)
+            return;
+
+        switch (type)
+        {
+            case QuestionType.MultipleChoice:
+                MultipleChoiceQuestion mcq = new MultipleChoiceQuestion
+                {
+                    Answers = [ .. MultipleChoiceQuestion.GetDefaultAnswers() ],
+                    MaxSelectCount = 1,
+                    MinSelectCount = 1,
+                    Index = _question.Index,
+                    Text = _question.Text,
+                    Score = _question.Score,
+                    SecondsDuration = _question.SecondsDuration
+                };
+
+                ReplaceQuestion(mcq);
+                break;
+
+            case QuestionType.CodeEntry:
+                CodeEntryQuestion ceq = new CodeEntryQuestion
+                {
+                    Index = _question.Index,
+                    Text = _question.Text,
+                    Score = _question.Score,
+                    SecondsDuration = _question.SecondsDuration,
+                    CorrectTests = [ ],
+                    IncorrectTests = [ ]
+                };
+                        
+                ReplaceQuestion(ceq);
+                break;
+
+            case QuestionType.BlankEntry:
+                BlankEntryQuestion beq = new BlankEntryQuestion
+                {
+                    Index = _question.Index,
+                    Text = _question.Text,
+                    Score = _question.Score,
+                    SecondsDuration = _question.SecondsDuration,
+                    Answers =
+                    [
+                        new BlankEntryAnswer
+                        {
+                            Index = 0,
+                            CorrectRegex = ".*"
+                        }
+                    ]
+                };
+
+                ReplaceQuestion(beq);
+                break;
+        }
+    }
+
+    public struct QuestionReplaceArgs
+    {
+        public required Question OldQuestion { get; init; }
+        public required Question NewQuestion { get; init; }
+    }
+}

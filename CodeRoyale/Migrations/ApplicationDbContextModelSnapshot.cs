@@ -265,6 +265,9 @@ namespace CodeRoyale.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("varchar(256)");
 
+                    b.Property<byte>("Index")
+                        .HasColumnType("tinyint unsigned");
+
                     b.Property<int>("OrGroup")
                         .HasColumnType("int");
 
@@ -331,6 +334,9 @@ namespace CodeRoyale.Migrations
                         .HasColumnType("int");
 
                     b.Property<double>("Score")
+                        .HasColumnType("double");
+
+                    b.Property<double?>("SecondsDuration")
                         .HasColumnType("double");
 
                     b.Property<string>("Text")
@@ -544,6 +550,9 @@ namespace CodeRoyale.Migrations
                         .IsRequired()
                         .HasMaxLength(512)
                         .HasColumnType("varchar(512)");
+
+                    b.Property<int>("RegexFlags")
+                        .HasColumnType("int");
 
                     b.ToTable("questions_code_tests");
 

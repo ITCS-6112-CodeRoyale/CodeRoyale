@@ -1,0 +1,27 @@
+﻿@{
+    @foreach (CodeEntryTest test in Tests.OrderBy(x => x.Index))
+    {
+        switch (test)
+        {
+            case CodeEntryUnitTest utest:
+                <CodeEntryUnitTestEditor Question="@Question" Test="@utest" IsCorrect="@IsCorrect"/>
+                break;
+            case CodeEntryRegexTest rtest:
+                <CodeEntryRegExTestEditor Question="@Question" Test="@rtest" IsCorrect="@IsCorrect"/>
+                break;
+        }
+    }
+}
+
+@code {
+
+    [Parameter]
+    public required IList<CodeEntryTest> Tests { get; set; }
+
+    [Parameter]
+    public required CodeEntryQuestion Question { get; set; }
+
+    [Parameter]
+    public required bool IsCorrect { get; set; }
+
+}

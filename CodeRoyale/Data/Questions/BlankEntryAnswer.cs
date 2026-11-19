@@ -11,7 +11,11 @@ namespace CodeRoyale.Data.Questions;
 [Table("questions_blank_answers")]
 public class BlankEntryAnswer
 {
+    internal static readonly TimeSpan RegexTimeout = TimeSpan.FromSeconds(0.05d);
+
     public const int MaxCorrectRegexLength = 1024;
+
+    public const RegexOptions DefaultRegexOptions = RegexOptions.IgnoreCase | RegexOptions.ExplicitCapture | RegexOptions.Singleline | RegexOptions.NonBacktracking;
 
     [Key, DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public int Id { get; set; }
@@ -30,6 +34,6 @@ public class BlankEntryAnswer
     /// <summary>
     /// Options for regex parsing.
     /// </summary>
-    [DefaultValue(RegexOptions.IgnoreCase)]
-    public RegexOptions RegexFlags { get; set; } = RegexOptions.IgnoreCase;
+    [DefaultValue(DefaultRegexOptions)]
+    public RegexOptions RegexFlags { get; set; } = DefaultRegexOptions;
 }

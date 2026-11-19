@@ -1,0 +1,122 @@
+﻿@page "/questions/edit-questions"
+
+@using CodeRoyale.Live
+
+@layout QuestionsLayout
+
+@inject ApplicationUserProvider UserProvider
+@inject ApplicationDbContext DbContext
+@inject NavigationManager NavigationManager
+@inject QuestionEditorSessionStateManager State
+
+@if (_set == null || _user == null)
+{
+    <PageTitle>Edit Question Set | CodeRoyale</PageTitle>
+    return;
+}
+
+<PageTitle>Edit @_set.Name | CodeRoyale</PageTitle>
+
+<h1>Edit @_set.Name</h1>
+
+@if (_set.Revision != 0)
+{
+    <p>Revision @_set.Revision</p>
+}
+
+<hr />
+
+@if (_set.Questions.Count == 1)
+{
+    <p>1 question</p>
+}
+else
+{
+    <p>@_set.Questions.Count questions</p>
+}
+
+<button @onclick="OnAddQuestionClicked" class="btn btn-secondary mb-3">Add question</button>
+
+<div class="container ms-0">
+    @foreach (Question question in _set.Questions.OrderBy(x => x.Index))
+    {
+        <QuestionEditor Question="question" Set="_set" OnQuestionDeleted="OnQuestionDeleted" />
+    }
+</div>
+
+<button type="submit" class="w-100 btn btn-lg btn-primary" @onclick="OnClickSaveAsync">Save</button>
+
+@code {
+
+    private ApplicationUser? _user;
+    private QuestionSet? _set;
+
+    [SupplyParameterFromQuery(Name = "set")]
+    public int Set { get; set; }
+
+    [SupplyParameterFromQuery(Name = "rev")]
+    public int Rev { get; set; } = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _user = await UserProvider.GetLoggedInUserAsync();
+        if (_user == null)
+            return;
+
+        if (Set == 0 && Rev == 0 && State.Set != null)
+        {
+            Set = State.Set.Id;
+            Rev = State.Set.Revision;
+        }
+
+        _set = await Question.IncludeAll(DbContext.QuestionSets).FirstOrDefaultAsync(s => s.User == _user && s.Id == Set && s.Revision == Rev);
+        if (_set == null)
+        {
+            NavigationManager.NavigateTo("/questions");
+            return;
+        }
+
+        State.Set = _set;
+    }
+
+    private async Task OnClickSaveAsync()
+    {
+        await DbContext.SaveChangesAsync();
+        NavigationManager.NavigateTo("/questions");
+    }
+
+    private void OnQuestionDeleted(Question question)
+    {
+        if (_set == null)
+            return;
+
+        int index = _set.Questions.IndexOf(question);
+        if (index == -1)
+        {
+            index = _set.Questions.Index().FirstOrDefault(x => x.Item.Id == question.Id, (-1, null!)).Index;
+            if (index == -1)
+                return;
+        }
+
+        _set.Questions.RemoveAt(index);
+        foreach (Question q in _set.Questions)
+        {
+            if (q.Index > index)
+                --q.Index;
+        }
+    }
+
+    private void OnAddQuestionClicked()
+    {
+        _set?.Questions.Add(new MultipleChoiceQuestion
+        {
+            Id = 0,
+            MinSelectCount = 1,
+            MaxSelectCount = 1,
+            Score = 1000,
+            Answers = [ .. MultipleChoiceQuestion.GetDefaultAnswers() ],
+            Text = string.Empty,
+            Index = _set.Questions.Count
+        });
+    }
+}
