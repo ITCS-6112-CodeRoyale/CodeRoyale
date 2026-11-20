@@ -13,6 +13,9 @@ public class GamePlayer
     [NotMapped]
     internal string? IntlGameId; // not GameId cause it messes up the automatically mapped property
 
+    [NotMapped]
+    internal int Seed;
+
     [Key, DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public int Id { get; set; }
 

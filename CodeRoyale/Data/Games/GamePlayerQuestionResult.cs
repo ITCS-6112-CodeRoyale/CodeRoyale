@@ -7,6 +7,9 @@ namespace CodeRoyale.Data.Games;
 [Table("games_question_results")]
 public class GamePlayerQuestionResult
 {
+    [NotMapped]
+    internal int CorrectPoints, TotalPoints;
+
     [Key, DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public int Id { get; set; }
     

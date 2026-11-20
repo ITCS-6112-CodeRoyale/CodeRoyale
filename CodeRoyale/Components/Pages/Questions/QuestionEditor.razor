@@ -83,7 +83,7 @@
                 case CodeEntryQuestion ceq:
 
                     <div class="form-floating mb-3">
-                        <textarea @oninput="OnStartingCodeTyped" id="question-@_question.Id-startcode" class="form-control" rows="5" cols="45"></textarea>
+                        <textarea value="@ceq.StartingText" @oninput="OnStartingCodeTyped" id="question-@_question.Id-startcode" class="form-control" rows="12" cols="45"></textarea>
                         <label for="question-@_question.Id-startcode" class="form-label">Starting Code</label>
                     </div>
 

@@ -13,7 +13,7 @@ public class CodeEntryUnitTest : CodeEntryTest
 
     public override CodeEntryTestType Type
     {
-        get => CodeEntryTestType.Regex;
+        get => CodeEntryTestType.Unit;
         set { }
     }
 

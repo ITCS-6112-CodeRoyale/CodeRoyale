@@ -1,3 +1,4 @@
+using CodeRoyale.CodeRunner;
 using CodeRoyale.Components;
 using CodeRoyale.Components.Account;
 using CodeRoyale.Data;
@@ -37,6 +38,7 @@ builder.Services.AddSignalR();
 // Live game state is in-memory and shared, so the service is a singleton and the
 // loop that advances it is a single background worker.
 builder.Services.AddSingleton<GameService>();
+builder.Services.AddSingleton<CodeEntryTestService>();
 builder.Services.AddHostedService<GameLoopService>();
 
 builder.Services.AddCascadingAuthenticationState();

@@ -39,14 +39,20 @@ public sealed record ScoreEntry(
 /// A game in progress. Lives in memory only: the database stores authoring and
 /// history, never per-tick state.
 /// </summary>
-public sealed class LiveGame
+public sealed class LiveGame : IDisposable
 {
+    private readonly CancellationTokenSource _cts = new CancellationTokenSource();
+
+    internal CancellationToken CancellationToken => _cts.Token;
+
     public required string JoinCode { get; init; }
     public required QuestionSet Deck { get; init; }
     public required string HostPlayerId { get; init; }
     public DateTime CreatedUtc { get; } = DateTime.UtcNow;
     public DateTime StartedUtc { get; set; }
     public DateTime? EndedUtc { get; set; }
+
+    public bool RandomizeAnswers { get; set; }
 
     /// <summary>Guards every mutation of this game's phase, index and scores.</summary>
     public Lock Gate { get; } = new();
@@ -75,4 +81,10 @@ public sealed class LiveGame
 
     public int SecondsLeft(DateTime utcNow) =>
         PhaseEndsUtc is null ? 0 : Math.Max(0, (int)Math.Ceiling((PhaseEndsUtc.Value - utcNow).TotalSeconds));
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        _cts.Dispose();
+    }
 }

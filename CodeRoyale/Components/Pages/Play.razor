@@ -1,5 +1,9 @@
 @page "/play/{JoinCodeParam}"
+@using System.Collections.Immutable
 @using System.Globalization
+@using System.Net
+@using System.Text.RegularExpressions
+@using CodeRoyale.CodeRunner
 @using CodeRoyale.Data
 @using CodeRoyale.Data.Games
 @using CodeRoyale.Data.Questions
@@ -8,8 +12,10 @@
 
 @implements IDisposable
 @inject GameService Games
+@inject CodeEntryTestService CodeTestService
 @inject NavigationManager Nav
 @inject ApplicationUserProvider UserProvider
+@inject ILogger<Play> Logger
 
 <PageTitle>CodeRoyale</PageTitle>
 
@@ -103,7 +109,7 @@ else
                  style="width: @TimePercent%;"></div>
         </div>
 
-        <h2 class="h3 mb-4">@game.CurrentQuestion.Text</h2>
+        <h2 class="h3 mb-4">@(new MarkupString(game.CurrentQuestion.Text))</h2>
 
         @if (me.HasAnswered(game.CurrentIndex))
         {
@@ -112,14 +118,27 @@ else
             @switch (game.CurrentQuestion)
             {
                 case MultipleChoiceQuestion mcq:
-            
+
                     <ul class="list-group" style="max-width: 44rem;">
-                        @foreach (MultipleChoiceAnswer answer in mcq.Answers)
+                        @foreach (MultipleChoiceAnswer answer in GetShuffledAnswers(mcq))
                         {
-                            <li class="list-group-item @(MyAnswerIndex == answer.Index ? "active" : "")">@answer.Text</li>
+                            <li class="list-group-item @(MyAnswerIndex == answer.Index ? "active" : "")">@(new MarkupString(answer.Text))</li>
                         }
                     </ul>
-                    break; // TODO add more questions
+                    break;
+
+                case CodeEntryQuestion when _codeEntryResult != null:
+                    <div class="container">
+                        
+                        <label for="ceq_code" class="form-label">Code</label>
+                        <textarea id="ceq_code" class="form-control" rows="16" value="@Code" disabled></textarea>
+
+                    </div>
+                    break;
+
+                case BlankEntryQuestion when _blanksFilledIn.Value != null:
+                    <p>@_blanksFilledIn</p>
+                    break;
             }
         }
         else
@@ -129,15 +148,53 @@ else
                 case MultipleChoiceQuestion mcq:
             
                     <div class="d-grid gap-2" style="max-width: 44rem;">
-                        @foreach (MultipleChoiceAnswer answer in mcq.Answers)
+                        @foreach (MultipleChoiceAnswer answer in GetShuffledAnswers(mcq))
                         {
                             int idx = answer.Index;
                             <button class="btn @OptionClass(idx) btn-lg text-start py-3" @onclick="() => AnswerMultipleChoice(idx, mcq)">
-                                @answer.Text
+                                @(new MarkupString(answer.Text))
                             </button>
                         }
                     </div>
-                    break; // TODO add more questions
+                    break;
+
+                case CodeEntryQuestion:
+
+                    <div class="container">
+                        
+                        <label for="ceq_code" class="form-label">Code</label>
+                        <textarea id="ceq_code" class="form-control" rows="16" value="@Code" @onchange="value => Code = value.Value?.ToString()"></textarea>
+
+                    </div>
+
+                    <button class="btn btn-primary" @onclick="AnswerCodeEntryQuestion">Submit</button>
+                    break;
+
+                case BlankEntryQuestion beq when _blankAnswers != null:
+
+                    <p>
+                        @foreach ((MarkupString segment, int blank) in GetBlankSegments(beq))
+                        {
+                            @if (!string.IsNullOrEmpty(segment.Value))
+                            {
+                                <span>@segment</span>
+                            }
+                            @if (blank != -1)
+                            {
+                                <input type="text" class="d-inline" size="32" value="@_blankAnswers[blank]" @onchange="e => _blankAnswers[blank] = e.Value?.ToString()">
+                            }
+                        }
+                    </p>
+                    
+                    @if (!Array.Exists(_blankAnswers, string.IsNullOrWhiteSpace))
+                    {
+                        <button class="btn btn-primary" @onclick="AnswerBlankEntryQuestion">Submit</button>
+                    }
+                    else
+                    {
+                        <button class="btn btn-primary" disabled>Submit</button>
+                    }
+                    break;
             }
         }
 
@@ -150,7 +207,15 @@ else
     else if (game.Phase == GamePhase.Reveal && game.CurrentQuestion is not null)
     {
         <span class="text-muted">Question @game.QuestionNumber of @game.QuestionCount</span>
-        <h2 class="h4 mb-3">@game.CurrentQuestion.Text</h2>
+
+        @if (game.CurrentQuestion is not BlankEntryQuestion)
+        {
+            <h2 class="h4 mb-3">@(new MarkupString(game.CurrentQuestion.Text))</h2>
+        }
+        else
+        {
+            <h2 class="h4 mb-3">Blank Entry Question</h2>
+        }
 
         @switch (game.CurrentQuestion)
         {
@@ -160,7 +225,7 @@ else
                     @foreach (MultipleChoiceAnswer answer in mcq.Answers)
                     {
                         <li class="list-group-item d-flex justify-content-between align-items-center @(answer.IsCorrect ? "list-group-item-success" : "")">
-                            <span>@answer.Text</span>
+                            <span>@(new MarkupString(answer.Text))</span>
                             <span>
                                 @if (answer.IsCorrect)
                                 {
@@ -174,17 +239,95 @@ else
                         </li>
                     }
                 </ul>
-                break; // TODO add more questions
+                break;
+
+            case CodeEntryQuestion when _codeEntryResult != null:
+
+                @if (!string.IsNullOrEmpty(Code))
+                {
+                    <div class="container">
+                        
+                        <label for="ceq_code" class="form-label">Code</label>
+                        <textarea id="ceq_code" class="form-control" rows="16" value="@Code" disabled></textarea>
+
+                    </div>
+                }
+
+                <h3 class="h5 mb-3">Test results</h3>
+
+                if (_codeEntryResult.IsCorrect)
+                {
+                    <p class="mb-2">✅ @(_codeEntryResult.PassedCorrectTests.Count + _codeEntryResult.FailedIncorrectTests.Count) passed</p>
+                }
+                else
+                {
+                    <p class="mb-1">❌ @(_codeEntryResult.FailedCorrectTests.Count + _codeEntryResult.PassedIncorrectTests.Count) failed</p>
+                    <ul class="list-group mb-2">
+                        @foreach (CodeEntryTest test in _codeEntryResult.FailedCorrectTests.Concat(_codeEntryResult.PassedIncorrectTests).OrderBy(x => x.Index))
+                        {
+                            <li class="list-group-item">@(new MarkupString(test.Description))</li>
+                        }
+                    </ul>
+
+                    @if (_codeEntryResult.PassedCorrectTests.Count + _codeEntryResult.FailedIncorrectTests.Count > 0)
+                    {
+                        <p class="mb-2">✅ @(_codeEntryResult.PassedCorrectTests.Count + _codeEntryResult.FailedIncorrectTests.Count) passed</p>
+                        <ul class="list-group mb-2">
+                            @foreach (CodeEntryTest test in _codeEntryResult.PassedCorrectTests.Concat(_codeEntryResult.FailedIncorrectTests).OrderBy(x => x.Index))
+                            {
+                                <li class="list-group-item">@(new MarkupString(test.Description))</li>
+                            }
+                        </ul>
+                    }
+                }
+                break;
+
+            case BlankEntryQuestion when _regexErrors != null:
+                <h3 class="h5 mb-3">Results</h3>
+                <p>@_blanksFilledIn</p>
+
+                List<(int i, MarkupString str)> failures = _regexErrors.Index().Where(x => !string.IsNullOrEmpty(x.Item.Value)).ToList();
+                @if (failures.Count > 0)
+                {
+                    @if (failures.Count == _regexErrors.Length)
+                    {
+                        <p>❌ Incorrect</p>
+                    }
+                    else
+                    {
+                        <p><strong>@(_regexErrors.Length - failures.Count) / @_regexErrors.Length</strong> Correct - @(((double)failures.Count / _regexErrors.Length).ToString("P0", CultureInfo.CurrentUICulture))</p>
+                    }
+
+                    <ul class="list-group mb-2">
+                        @foreach ((int i, MarkupString str) in failures)
+                        {
+                            <li>❌ Blank #@(i + 1): @str</li>
+                        }
+                    </ul>
+                }
+                else
+                {
+                    <p>✅ Correct</p>
+                }
+
+                break;
         }
 
         @if (MyAnswer is null)
         {
             <div class="alert alert-secondary">You did not answer in time. No points.</div>
         }
-        else if (MyAnswer.IsCorrect)
+        else if (MyAnswer.CorrectPoints == MyAnswer.TotalPoints)
         {
             <div class="alert alert-success">
                 Correct in @MyAnswer.AnswerTime.TotalSeconds.ToString("0.0")s &mdash;
+                <strong>+@MyAnswer.Score</strong> points
+            </div>
+        }
+        else if (MyAnswer.CorrectPoints > 0)
+        {
+            <div class="alert alert-warning">
+                @(((double)MyAnswer.CorrectPoints / MyAnswer.TotalPoints).ToString("P0", CultureInfo.CurrentUICulture)) correct in @MyAnswer.AnswerTime.TotalSeconds.ToString("0.0")s &mdash;
                 <strong>+@MyAnswer.Score</strong> points
             </div>
         }
@@ -221,6 +364,22 @@ else
 @code {
     [Parameter] public string JoinCodeParam { get; set; } = string.Empty;
 
+    private Question? _cachedQuestion;
+
+    private MultipleChoiceAnswer[]? _shuffledAnswers;
+
+    private CodeEntryTestResult? _codeEntryResult;
+
+    private MarkupString _blanksFilledIn;
+
+    private MarkupString[]? _regexErrors;
+
+    private ArraySegment<(MarkupString segment, int blank)> _blanksUnfilled;
+
+    private string?[]? _blankAnswers;
+
+    private string? Code { get; set; }
+
     [SupplyParameterFromQuery(Name = "p")]
     private string? PlayerId { get; set; }
 
@@ -245,7 +404,7 @@ else
         get
         {
             if (game is null) return 0;
-            double total = Math.Max(1d, game.Deck.SecondsPerQuestion);
+            double total = Math.Max(1d, game.CurrentQuestion?.SecondsDuration ?? game.Deck.SecondsPerQuestion);
             return Math.Clamp((int)(100.0 * SecondsLeft / total), 0, 100);
         }
     }
@@ -273,6 +432,46 @@ else
         ticker = new Timer(_ => InvokeAsync(StateHasChanged), null, TimeSpan.FromMilliseconds(500), TimeSpan.FromMilliseconds(500));
     }
 
+
+    private IList<MultipleChoiceAnswer> GetShuffledAnswers(MultipleChoiceQuestion question)
+    {
+        if (question == _cachedQuestion)
+            return (IList<MultipleChoiceAnswer>?)_shuffledAnswers ?? question.Answers;
+            
+        MultipleChoiceAnswer[] answers = question.Answers.ToArray();
+        if (question.RandomizeAnswers ?? game!.RandomizeAnswers)
+        {
+            new Random(me!.Seed).Shuffle(answers);
+        }
+        else
+        {
+            Array.Sort(answers, (a, b) => a.Index.CompareTo(b.Index));
+        }
+        
+        _shuffledAnswers = answers;
+        _cachedQuestion = question;
+        return answers;
+    }
+
+    private ArraySegment<(MarkupString segment, int blank)> GetBlankSegments(BlankEntryQuestion question)
+    {
+        if (_cachedQuestion == question)
+            return _blanksUnfilled;
+
+        ImmutableArray<BlankEntryDataSpan> spans = question.GetSpans();
+
+        (MarkupString segment, int blank)[] array = new (MarkupString segment, int blank)[spans.Length];
+        for (int i = 0; i < array.Length; ++i)
+        {
+            BlankEntryDataSpan span = spans[i];
+            array[i] = (new MarkupString(span.Prefix.ToString()), span.AnswerIndex);
+        }
+
+        _blanksUnfilled = array;
+        _cachedQuestion = question;
+        return array;
+    }
+
     protected override void OnParametersSet()
     {
         game = Games.Find(JoinCodeParam);
@@ -280,11 +479,40 @@ else
             ? game.Players.GetValueOrDefault(PlayerId)
             : null;
         _isHost = me != null && game != null && game.HostPlayerId == me.IntlGameId;
+        if (game != null)
+        {
+            UpdateCurrentQuestion();
+        }
+    }
+
+    private void UpdateCurrentQuestion()
+    {
+        if (string.IsNullOrEmpty(Code))
+        {
+            if (game!.CurrentQuestion is CodeEntryQuestion ceq)
+            {
+                Code ??= ceq.StartingText;
+            }
+            else
+            {
+                Code = null;
+            }
+        }
+
+        if (game!.CurrentQuestion is BlankEntryQuestion beq)
+        {
+            _blankAnswers = new string[beq.Answers.Count];
+        }
+        else
+        {
+            _blankAnswers = null;
+        }
     }
 
     private void OnGameChanged(string joinCode)
     {
         if (!string.Equals(joinCode, game?.JoinCode, StringComparison.OrdinalIgnoreCase)) return;
+        UpdateCurrentQuestion();
         InvokeAsync(StateHasChanged);
     }
 
@@ -315,6 +543,90 @@ else
     {
         if (game is null || me is null) return;
         actionError = Games.SubmitMultipleChoiceAnswer(game.JoinCode, me.IntlGameId!, question, optionIndex);
+    }
+
+    private void AnswerCodeEntryQuestion()
+    {
+        string? code = Code;
+        if (game is null || me is null || string.IsNullOrEmpty(code) || game.CurrentQuestion is not CodeEntryQuestion ceq) return;
+
+        DateTime answerTime = DateTime.UtcNow;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                CodeEntryTestProcessor processor = CodeTestService.CreateProcessor(answerTime, ceq, code);
+                _codeEntryResult = await processor.ProcessAsync(game.CancellationToken);
+                actionError = Games.SubmitCodeEntryAnswer(game.JoinCode, me.IntlGameId!, ceq, code, _codeEntryResult);
+                await InvokeAsync(StateHasChanged);
+            }
+            catch (OperationCanceledException) when (game.CancellationToken.IsCancellationRequested) { }
+            catch (Exception ex)
+            {
+                actionError = ex.GetType().Name + " - " + ex.Message;
+            }
+        });
+    }
+
+    private void AnswerBlankEntryQuestion()
+    {
+        string?[]? answers = _blankAnswers;
+        if (game is null || me is null || answers == null || game.CurrentQuestion is not BlankEntryQuestion beq || Array.Exists(answers, string.IsNullOrWhiteSpace)) return;
+        
+        DateTime answerTime = DateTime.UtcNow;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                _blanksFilledIn = beq.RecombineAnswers(answers);
+
+                MarkupString[] regexErrors = new MarkupString[beq.Answers.Count];
+                int correct = 0;
+                for (int i = 0; i < beq.Answers.Count; ++i)
+                {
+                    string? value = answers[i];
+                    if (string.IsNullOrEmpty(value))
+                    {
+                        regexErrors[i] = new MarkupString("Unanswered");
+                        continue;
+                    }
+                        
+                    BlankEntryAnswer answer = beq.Answers[i];
+                    try
+                    {
+                        Regex regex = new Regex(answer.CorrectRegex, answer.RegexFlags & ~RegexOptions.Compiled, BlankEntryAnswer.RegexTimeout);
+                        if (regex.IsMatch(value.AsSpan().Trim()))
+                        {
+                            ++correct;
+                        }
+                        else
+                        {
+                            regexErrors[i] = new MarkupString($"Incorrect, expected a value matching <code>{WebUtility.HtmlEncode(answer.CorrectRegex)}</code>.");
+                        }
+                    }
+                    catch (RegexMatchTimeoutException)
+                    {
+                        regexErrors[i] = new MarkupString("<span class=\"text-danger\">Evaluation timed out.</span>");
+                    }
+                    catch (Exception ex)
+                    {
+                        regexErrors[i] = new MarkupString($"<span class=\"text-danger\">Evaluation errored: {WebUtility.HtmlEncode(ex.Message)}.</span>");
+                        Logger.LogWarning(ex, "Error solving regex: \"{Regex}\" for answer \"{Answer}\".", answer.CorrectRegex, value);
+                    }
+                }
+
+                actionError = Games.SubmitBlankEntryAnswer(game.JoinCode, me.IntlGameId!, beq, answerTime, _blanksFilledIn.Value, correct);
+                _regexErrors = regexErrors;
+                await InvokeAsync(StateHasChanged);
+            }
+            catch (OperationCanceledException) when (game.CancellationToken.IsCancellationRequested) { }
+            catch (Exception ex)
+            {
+                actionError = ex.GetType().Name + " - " + ex.Message;
+            }
+        });
     }
 
     /// <summary>Bootstrap colour per answer index, so the options read as distinct choices.</summary>

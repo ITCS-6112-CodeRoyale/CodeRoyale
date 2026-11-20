@@ -1,11 +1,12 @@
-using System.Collections.Concurrent;
-using System.Globalization;
+using CodeRoyale.CodeRunner;
 using CodeRoyale.Data;
 using CodeRoyale.Data.Games;
 using CodeRoyale.Data.Questions;
 using CodeRoyale.Hubs;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using System.Collections.Concurrent;
+using System.Globalization;
 
 namespace CodeRoyale.Live;
 
@@ -71,6 +72,8 @@ public sealed class GameService : IAsyncDisposable
         string code = NextFreeCode();
         string hostId = hostUser?.Id ?? Guid.NewGuid().ToString("D");
 
+        deck.Questions = new List<Question>(deck.Questions.OrderBy(x => x.Index));
+
         LiveGame game = new()
         {
             JoinCode = code,
@@ -85,7 +88,8 @@ public sealed class GameService : IAsyncDisposable
             User = hostUser,
             UserId = hostUser?.Id,
             JoinedTime = DateTime.UtcNow,
-            Results = [ ]
+            Results = [ ],
+            Seed = Random.Shared.Next()
         };
 
         game.Players[hostId] = host;
@@ -126,7 +130,8 @@ public sealed class GameService : IAsyncDisposable
                 UserId = user?.Id,
                 User = user,
                 JoinedTime = DateTime.UtcNow,
-                Results = [ ]
+                Results = [ ],
+                Seed = Random.Shared.Next()
             };
 
             game.Players[player.IntlGameId] = player;
@@ -181,14 +186,16 @@ public sealed class GameService : IAsyncDisposable
 
             DateTime now = DateTime.UtcNow;
             TimeSpan elapsed = now - (game.QuestionStartedUtc ?? now);
-            int points = PointsFor(question, chosen.IsCorrect, elapsed, game.Deck.SecondsPerQuestion);
+            int points = PointsFor(question, chosen.IsCorrect, elapsed, question.SecondsDuration ?? game.Deck.SecondsPerQuestion);
 
             GamePlayerQuestionResult result = new GamePlayerQuestionResult
             {
                 Question = question,
                 Score = points,
                 Response = chosen.Id.ToString(CultureInfo.InvariantCulture),
-                AnswerTime = elapsed
+                AnswerTime = elapsed,
+                CorrectPoints = chosen.IsCorrect ? 1 : 0,
+                TotalPoints = 1
             };
 
             player.Answers[questionIndex] = result;
@@ -200,6 +207,94 @@ public sealed class GameService : IAsyncDisposable
             if (game.Players.Values.All(p => p.HasAnswered(questionIndex)))
             {
                 CloseQuestion(game, now);
+            }
+        }
+
+        NotifyChanged(game.JoinCode);
+        return null;
+    }
+
+    public string? SubmitCodeEntryAnswer(string joinCode, string playerId, Question question, string code, CodeEntryTestResult codeTestResult)
+    {
+        LiveGame? game = FindWellFormed(joinCode);
+        if (game is null) return "No game found with that code.";
+
+        lock (game.Gate)
+        {
+            int questionIndex = question.Index;
+            if (game.Phase != GamePhase.Question) return "Answers are closed.";
+            if (game.CurrentIndex != questionIndex) return "That question is no longer on screen.";
+            if (!game.Players.TryGetValue(playerId, out GamePlayer? player)) return "You are not in this game.";
+            if (player.HasAnswered(questionIndex)) return "You already answered this question.";
+
+            if (question is not CodeEntryQuestion) return "Unsupported question type.";
+
+            TimeSpan elapsed = codeTestResult.AnswerSubmittedTimestamp - (game.QuestionStartedUtc ?? codeTestResult.AnswerSubmittedTimestamp);
+            int points = PointsFor(question, codeTestResult.IsCorrect, elapsed, question.SecondsDuration ?? game.Deck.SecondsPerQuestion);
+
+            GamePlayerQuestionResult result = new GamePlayerQuestionResult
+            {
+                Question = question,
+                Score = points,
+                Response = code,
+                AnswerTime = elapsed,
+                CorrectPoints = codeTestResult.IsCorrect ? 1 : 0,
+                TotalPoints = 1
+            };
+
+            player.Answers[questionIndex] = result;
+            player.Results.Add(result);
+
+            player.Score += points;
+
+            // Nobody left to wait for -- close early rather than stare at a dead timer.
+            if (game.Players.Values.All(p => p.HasAnswered(questionIndex)))
+            {
+                CloseQuestion(game, DateTime.UtcNow);
+            }
+        }
+
+        NotifyChanged(game.JoinCode);
+        return null;
+    }
+
+    public string? SubmitBlankEntryAnswer(string joinCode, string playerId, Question question, DateTime submittedTimestamp, string recombinedText, int correct)
+    {
+        LiveGame? game = FindWellFormed(joinCode);
+        if (game is null) return "No game found with that code.";
+
+        lock (game.Gate)
+        {
+            int questionIndex = question.Index;
+            if (game.Phase != GamePhase.Question) return "Answers are closed.";
+            if (game.CurrentIndex != questionIndex) return "That question is no longer on screen.";
+            if (!game.Players.TryGetValue(playerId, out GamePlayer? player)) return "You are not in this game.";
+            if (player.HasAnswered(questionIndex)) return "You already answered this question.";
+
+            if (question is not BlankEntryQuestion beq) return "Unsupported question type.";
+
+            TimeSpan elapsed = submittedTimestamp - (game.QuestionStartedUtc ?? submittedTimestamp);
+            int points = PointsFor(question, (double)correct / beq.Answers.Count, elapsed, question.SecondsDuration ?? game.Deck.SecondsPerQuestion);
+
+            GamePlayerQuestionResult result = new GamePlayerQuestionResult
+            {
+                Question = question,
+                Score = points,
+                Response = recombinedText,
+                AnswerTime = elapsed,
+                CorrectPoints = correct,
+                TotalPoints = beq.Answers.Count
+            };
+
+            player.Answers[questionIndex] = result;
+            player.Results.Add(result);
+
+            player.Score += points;
+
+            // Nobody left to wait for -- close early rather than stare at a dead timer.
+            if (game.Players.Values.All(p => p.HasAnswered(questionIndex)))
+            {
+                CloseQuestion(game, DateTime.UtcNow);
             }
         }
 
@@ -220,6 +315,22 @@ public sealed class GameService : IAsyncDisposable
         double multiplier = 1d - (1d - SlowestCorrectMultiplier) * fraction;
 
         return (int)Math.Round(question.Score * multiplier);
+    }
+
+    /// <summary>
+    /// Points for one answer: full value for an instant correct answer, falling linearly
+    /// to half value at the deadline. Partially correct answers give partial credit.
+    /// </summary>
+    public static int PointsFor(Question question, double percentCorrect, TimeSpan elapsed, double secondsPerQuestion)
+    {
+        if (percentCorrect <= 0)
+            return 0;
+
+        double limit = Math.Max(1d, secondsPerQuestion);
+        double fraction = Math.Clamp(elapsed.TotalSeconds / limit, 0, 1d);
+        double multiplier = 1d - (1d - SlowestCorrectMultiplier) * fraction;
+
+        return (int)Math.Round(question.Score * multiplier * percentCorrect);
     }
 
     /// <summary>
@@ -391,6 +502,8 @@ public sealed class GameService : IAsyncDisposable
             game.Phase = GamePhase.Ended;
         }
 
+        game.Dispose();
+
         List<GamePlayer> contestants = game.Contestants.ToList();
 
         QuestionSet? set = await dbContext.QuestionSets
@@ -441,7 +554,7 @@ public sealed class GameService : IAsyncDisposable
         game.CurrentIndex = index;
         game.Phase = GamePhase.Question;
         game.QuestionStartedUtc = now;
-        game.PhaseEndsUtc = now.AddSeconds(game.Deck.SecondsPerQuestion);
+        game.PhaseEndsUtc = now.AddSeconds(game.CurrentQuestion?.SecondsDuration ?? game.Deck.SecondsPerQuestion);
     }
 
     private void CloseQuestion(LiveGame game, DateTime now)
