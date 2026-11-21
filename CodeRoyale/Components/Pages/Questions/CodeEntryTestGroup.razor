@@ -4,10 +4,10 @@
         switch (test)
         {
             case CodeEntryUnitTest utest:
-                <CodeEntryUnitTestEditor Question="@Question" Test="@utest" IsCorrect="@IsCorrect"/>
+                <CodeEntryUnitTestEditor Question="@Question" Test="@utest" IsCorrect="@IsCorrect" OnDeleted="OnDeleteAsync"/>
                 break;
             case CodeEntryRegexTest rtest:
-                <CodeEntryRegExTestEditor Question="@Question" Test="@rtest" IsCorrect="@IsCorrect"/>
+                <CodeEntryRegExTestEditor Question="@Question" Test="@rtest" IsCorrect="@IsCorrect" OnDeleted="OnDeleteAsync" />
                 break;
         }
     }
@@ -23,5 +23,12 @@
 
     [Parameter]
     public required bool IsCorrect { get; set; }
+    
+    [Parameter]
+    public EventCallback<CodeEntryTest> OnDeleted { get; set; }
 
+    private Task OnDeleteAsync(CodeEntryTest test)
+    {
+        return OnDeleted.InvokeAsync(test);
+    }
 }

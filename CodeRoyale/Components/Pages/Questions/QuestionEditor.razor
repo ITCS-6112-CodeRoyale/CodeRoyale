@@ -14,14 +14,14 @@
 
             <div class="form-floating mb-3">
 
-                <input @bind-value="@Question.Text" id="question-@_question.Id-text" class="form-control" placeholder="Question text" maxlength="@Question.MaxTextLength" type="text" />
+                <input @bind-value="@_question.Text" id="question-@_question.Id-text" class="form-control" placeholder="Question text" maxlength="@Question.MaxTextLength" type="text" />
                 <label for="question-@_question.Id-text" class="form-label">Question</label>
 
             </div>
 
             <div class="form-floating mb-3">
 
-                <input @bind-value="@Question.Score" id="question-@_question.Id-score" class="form-control" placeholder="1000" type="number" />
+                <input @bind-value="@_question.Score" id="question-@_question.Id-score" class="form-control" placeholder="1000" type="number" />
                 <label for="question-@_question.Id-score" class="form-label">Maximum Points</label>
 
             </div>
@@ -90,7 +90,7 @@
                     <h4>@ceq.CorrectTests.Count correct test@(ceq.CorrectTests.Count == 1 ? string.Empty : "s")</h4>
                     <p>All of these tests must pass for the answer to be considered 'correct'.</p>
 
-                    <CodeEntryTestGroup Question="ceq" Tests="ceq.CorrectTests" IsCorrect="true" />
+                    <CodeEntryTestGroup Question="ceq" Tests="ceq.CorrectTests" IsCorrect="true" OnDeleted="OnCorrectCEQTestDeleted"/>
                     
                     @if (ceq.CorrectTests.Count < byte.MaxValue)
                     {
@@ -103,7 +103,7 @@
                     <h4>@ceq.IncorrectTests.Count incorrect test@(ceq.CorrectTests.Count == 1 ? string.Empty : "s")</h4>
                     <p>All of these tests must fail for the answer to be considered 'correct'.</p>
                     
-                    <CodeEntryTestGroup Question="ceq" Tests="ceq.IncorrectTests" IsCorrect="false" />
+                    <CodeEntryTestGroup Question="ceq" Tests="ceq.IncorrectTests" IsCorrect="false" OnDeleted="OnIncorrectCEQTestDeleted" />
                     
                     @if (ceq.IncorrectTests.Count < byte.MaxValue)
                     {
@@ -324,6 +324,40 @@
         });
     }
 
+    private void OnCorrectCEQTestDeleted(CodeEntryTest test)
+    {
+        if (_question is not CodeEntryQuestion ceq)
+            return;
+
+        int index = ceq.CorrectTests.IndexOf(test);
+        if (index < 0)
+            return;
+
+        ceq.CorrectTests.RemoveAt(index);
+        foreach (CodeEntryTest t in ceq.CorrectTests)
+        {
+            if (t.Index > index)
+                --t.Index;
+        }
+    }
+
+    private void OnIncorrectCEQTestDeleted(CodeEntryTest test)
+    {
+        if (_question is not CodeEntryQuestion ceq)
+            return;
+
+        int index = ceq.IncorrectTests.IndexOf(test);
+        if (index < 0)
+            return;
+
+        ceq.IncorrectTests.RemoveAt(index);
+        foreach (CodeEntryTest t in ceq.IncorrectTests)
+        {
+            if (t.Index > index)
+                --t.Index;
+        }
+    }
+
     private void ReplaceQuestion(Question newQuestion)
     {
         Question old = _question!;
@@ -394,11 +428,5 @@
                 ReplaceQuestion(beq);
                 break;
         }
-    }
-
-    public struct QuestionReplaceArgs
-    {
-        public required Question OldQuestion { get; init; }
-        public required Question NewQuestion { get; init; }
     }
 }

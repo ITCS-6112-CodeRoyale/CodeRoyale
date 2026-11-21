@@ -10,14 +10,14 @@
             <label for="@_descId" class="form-label">Description</label>
 
         </div>
-        
+        @* 
         <div class="mb-3" title="Tests with the same OR-group number will use a logical 'OR' operation instead of 'AND'. 0 is ignored.">
             
             <input type="number" id="@_orGroupId" value="@Test.OrGroup" @onchange="e => Test.OrGroup = int.TryParse(e.Value?.ToString(), out int v) && v > 0 ? v : 0" maxlength="@CodeEntryTest.MaxDescriptionLength" class="form-control" />
             <label for="@_orGroupId" class="form-label">OR-Group</label>
 
         </div>
-
+ *@
         <div class="mb-3">
         
             <input type="text" id="@_regexId" @oninput="OnRegexValueChanged" value="@Test.Pattern" maxlength="@CodeEntryRegexTest.MaxPatternLength" class="form-control" />

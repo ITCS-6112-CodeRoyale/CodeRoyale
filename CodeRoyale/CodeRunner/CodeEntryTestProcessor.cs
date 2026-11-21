@@ -2,22 +2,33 @@
 
 namespace CodeRoyale.CodeRunner;
 
-public class CodeEntryTestProcessor
+public abstract class CodeEntryTestProcessor
 {
-    private readonly DateTime _answerTime;
-    private readonly CodeEntryQuestion _question;
-    private readonly string _code;
+    protected readonly DateTime AnswerTime;
+    protected readonly CodeEntryQuestion Question;
+    protected readonly string Code;
 
     internal CodeEntryTestProcessor(DateTime answerTime, CodeEntryQuestion question, string code)
     {
-        _answerTime = answerTime;
-        _question = question;
-        _code = code;
+        AnswerTime = answerTime;
+        Question = question;
+        Code = code;
     }
 
-    public virtual async Task<CodeEntryTestResult> ProcessAsync(CancellationToken token)
+    public abstract Task<CodeEntryTestResult> ProcessAsync(CancellationToken token);
+}
+
+/// <summary>
+/// Fails all tests, used for unsupported languages.
+/// </summary>
+public sealed class NoOpCodeEntryTestProcessor : CodeEntryTestProcessor
+{
+    public NoOpCodeEntryTestProcessor(DateTime answerTime, CodeEntryQuestion question, string code)
+        : base(answerTime, question, code) { }
+
+    public override Task<CodeEntryTestResult> ProcessAsync(CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
-        return new CodeEntryTestResult(_answerTime, [ ], _question.CorrectTests.ToList(), [ ], _question.IncorrectTests.ToList());
+        return Task.FromResult(new CodeEntryTestResult(AnswerTime, [ ], Question.CorrectTests.Select(x => new TestResult(x, null)).ToList(), [ ], Question.IncorrectTests.Select(x => new TestResult(x, null)).ToList(), null));
     }
 }

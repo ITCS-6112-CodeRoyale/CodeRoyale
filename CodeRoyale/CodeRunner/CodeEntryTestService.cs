@@ -1,11 +1,23 @@
-﻿using CodeRoyale.Data.Questions;
+﻿using CodeRoyale.Data;
+using CodeRoyale.Data.Questions;
 
 namespace CodeRoyale.CodeRunner;
 
 public class CodeEntryTestService
 {
-    public CodeEntryTestProcessor CreateProcessor(DateTime answerTime, CodeEntryQuestion question, string code)
+    private readonly ILogger<CodeEntryTestService> _logger;
+
+    public CodeEntryTestService(ILogger<CodeEntryTestService> logger)
     {
-        return new CodeEntryTestProcessor(answerTime, question, code);
+        _logger = logger;
+    }
+
+    public CodeEntryTestProcessor CreateProcessor(DateTime answerTime, CodeEntryQuestion question, CodeLanguage language, string code)
+    {
+        return language.LanguageCode switch
+        {
+            "js" => new JS.JavaScriptCodeEntryTestProcessor(answerTime, question, code, _logger),
+            _ => new NoOpCodeEntryTestProcessor(answerTime, question, code)
+        };
     }
 }

@@ -108,8 +108,15 @@ else
             <div class="progress-bar @(TimePercent < 30 ? "bg-danger" : "bg-success")"
                  style="width: @TimePercent%;"></div>
         </div>
-
-        <h2 class="h3 mb-4">@(new MarkupString(game.CurrentQuestion.Text))</h2>
+        
+        @if (game.CurrentQuestion is not BlankEntryQuestion)
+        {
+            <h2 class="h3 mb-3">@(new MarkupString(game.CurrentQuestion.Text))</h2>
+        }
+        else
+        {
+            <h2 class="h3 mb-3">Blank Entry Question</h2>
+        }
 
         @if (me.HasAnswered(game.CurrentIndex))
         {
@@ -131,7 +138,7 @@ else
                     <div class="container">
                         
                         <label for="ceq_code" class="form-label">Code</label>
-                        <textarea id="ceq_code" class="form-control" rows="16" value="@Code" disabled></textarea>
+                        <textarea id="ceq_code" class="form-control font-monospace" rows="16" value="@Code" disabled></textarea>
 
                     </div>
                     break;
@@ -163,7 +170,7 @@ else
                     <div class="container">
                         
                         <label for="ceq_code" class="form-label">Code</label>
-                        <textarea id="ceq_code" class="form-control" rows="16" value="@Code" @onchange="value => Code = value.Value?.ToString()"></textarea>
+                        <textarea id="ceq_code" class="form-control font-monospace" rows="16" value="@Code" @onchange="value => Code = value.Value?.ToString()"></textarea>
 
                     </div>
 
@@ -261,23 +268,46 @@ else
                 }
                 else
                 {
-                    <p class="mb-1">❌ @(_codeEntryResult.FailedCorrectTests.Count + _codeEntryResult.PassedIncorrectTests.Count) failed</p>
-                    <ul class="list-group mb-2">
-                        @foreach (CodeEntryTest test in _codeEntryResult.FailedCorrectTests.Concat(_codeEntryResult.PassedIncorrectTests).OrderBy(x => x.Index))
-                        {
-                            <li class="list-group-item">@(new MarkupString(test.Description))</li>
-                        }
-                    </ul>
+                    @if (_codeEntryResult.FailedCorrectTests.Count + _codeEntryResult.PassedIncorrectTests.Count > 0)
+                    {
+                        <p class="mb-1">❌ @(_codeEntryResult.FailedCorrectTests.Count + _codeEntryResult.PassedIncorrectTests.Count) failed</p>
+                        <ul class="list-group mb-2">
+                            @foreach (TestResult test in _codeEntryResult.FailedCorrectTests.Concat(_codeEntryResult.PassedIncorrectTests).OrderBy(x => x.Test.Index))
+                            {
+                                @if (test.Reason != null)
+                                {
+                                    <li class="list-group-item">@(new MarkupString(test.Test.Description)) - @test.Reason</li>
+                                }
+                                else
+                                {
+                                    <li class="list-group-item">@(new MarkupString(test.Test.Description))</li>
+                                }
+                            }
+                        </ul>
+                    }
 
                     @if (_codeEntryResult.PassedCorrectTests.Count + _codeEntryResult.FailedIncorrectTests.Count > 0)
                     {
                         <p class="mb-2">✅ @(_codeEntryResult.PassedCorrectTests.Count + _codeEntryResult.FailedIncorrectTests.Count) passed</p>
                         <ul class="list-group mb-2">
-                            @foreach (CodeEntryTest test in _codeEntryResult.PassedCorrectTests.Concat(_codeEntryResult.FailedIncorrectTests).OrderBy(x => x.Index))
+                            @foreach (TestResult test in _codeEntryResult.PassedCorrectTests.Concat(_codeEntryResult.FailedIncorrectTests).OrderBy(x => x.Test.Index))
                             {
-                                <li class="list-group-item">@(new MarkupString(test.Description))</li>
+                                @if (test.Reason != null)
+                                {
+                                    <li class="list-group-item">@(new MarkupString(test.Test.Description)) - @test.Reason</li>
+                                }
+                                else
+                                {
+                                    <li class="list-group-item">@(new MarkupString(test.Test.Description))</li>
+                                }
                             }
                         </ul>
+                    }
+
+                    @if (!string.IsNullOrEmpty(_codeEntryResult.UserError))
+                    {
+                        <p class="mb-2">❌ Error encountered while grading</p>
+                        <pre class="font-monospace">@_codeEntryResult.UserError</pre>
                     }
                 }
                 break;
@@ -429,6 +459,9 @@ else
 
         _user = await UserProvider.GetLoggedInUserAsync();
 
+        if (me is { UserId: not null } && !string.Equals(me.UserId, _user!.Id, StringComparison.Ordinal))
+            me = null;
+
         ticker = new Timer(_ => InvokeAsync(StateHasChanged), null, TimeSpan.FromMilliseconds(500), TimeSpan.FromMilliseconds(500));
     }
 
@@ -556,7 +589,7 @@ else
         {
             try
             {
-                CodeEntryTestProcessor processor = CodeTestService.CreateProcessor(answerTime, ceq, code);
+                CodeEntryTestProcessor processor = CodeTestService.CreateProcessor(answerTime, ceq, game!.Deck.Language, code);
                 _codeEntryResult = await processor.ProcessAsync(game.CancellationToken);
                 actionError = Games.SubmitCodeEntryAnswer(game.JoinCode, me.IntlGameId!, ceq, code, _codeEntryResult);
                 await InvokeAsync(StateHasChanged);

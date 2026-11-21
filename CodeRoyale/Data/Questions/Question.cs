@@ -57,7 +57,8 @@ public abstract class Question
         return q.Include(x => x.Questions).ThenInclude(x => ((MultipleChoiceQuestion)x).Answers)
                 .Include(x => x.Questions).ThenInclude(x => ((CodeEntryQuestion)x).CorrectTests)
                 .Include(x => x.Questions).ThenInclude(x => ((CodeEntryQuestion)x).IncorrectTests)
-                .Include(x => x.Questions).ThenInclude(x => ((BlankEntryQuestion)x).Answers);
+                .Include(x => x.Questions).ThenInclude(x => ((BlankEntryQuestion)x).Answers)
+                .Include(x => x.Language);
     }
 }
 
