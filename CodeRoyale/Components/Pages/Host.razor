@@ -16,8 +16,11 @@
 
 <PageTitle>Host a game | CodeRoyale</PageTitle>
 
-<h1>Host a game</h1>
-<p class="text-muted">Pick a deck, choose a name, and share the join code. No account needed.</p>
+<div class="page-header">
+    <div class="eyebrow">~/host</div>
+    <h1>Host a game</h1>
+    <p>Pick a deck and share the join code with your players.</p>
+</div>
 
 @if (error is not null)
 {
@@ -26,7 +29,7 @@
 
 @if (_sets != null && _user != null)
 {
-    <h2 class="h5">Choose a deck</h2>
+    <h2 class="section-title">Choose a deck</h2>
     <div class="row g-3">
         @foreach (QuestionSet deck in _sets)
         {
@@ -38,7 +41,7 @@
                         {
                             <p class="card-text small text-muted flex-grow-1">@deck.Description</p>
                         }
-                        <p class="card-text small mb-3">
+                        <p class="card-text small mb-3 mono">
                             <strong>@deck.Questions.Count</strong> questions &middot;
                             <strong>@deck.SecondsPerQuestion</strong>s each
                         </p>

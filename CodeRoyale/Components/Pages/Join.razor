@@ -10,21 +10,23 @@
 
 <PageTitle>Join a game | CodeRoyale</PageTitle>
 
-<h1>Join a game</h1>
-<p class="text-muted">Enter the code the host gave you. No account needed.</p>
+<div class="page-header">
+    <div class="eyebrow">~/join</div>
+    <h1>Join a game</h1>
+    <p>Enter the code the host gave you. No account needed.</p>
+</div>
 
 @if (error is not null)
 {
     <div class="alert alert-danger" role="alert">@error</div>
 }
 
-<div style="max-width: 24rem;">
+<div class="card-surface form-card">
 
     <div class="mb-3">
         <label class="form-label" for="code">Join code</label>
-        <input id="code" class="form-control form-control-lg text-uppercase" @bind="code" @bind:event="oninput"
-               maxlength="6" autocomplete="off" spellcheck="false"
-               style="letter-spacing: 0.3em; font-family: monospace;" placeholder="ABC234" />
+        <input id="code" class="form-control form-control-lg code-input" @bind="code" @bind:event="oninput"
+               maxlength="6" autocomplete="off" spellcheck="false" placeholder="ABC234" />
         <div class="form-text">6 characters. Letters I and O and digits 1 and 0 are never used.</div>
     </div>
 
@@ -38,10 +40,10 @@
     }
     else
     {
-        <p class="mb-3">You will join as @_user.GetDisplayName()</p>
+        <p class="mb-3">You will join as <strong>@_user.GetDisplayName()</strong></p>
     }
 
-    <button class="btn btn-primary btn-lg" @onclick="JoinGame" disabled="@(!CanJoin)">Join game</button>
+    <button class="btn btn-primary btn-lg w-100" @onclick="JoinGame" disabled="@(!CanJoin)">Join game</button>
 </div>
 
 @code {

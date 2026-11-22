@@ -1,19 +1,17 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
 
 <div class="page">
-    <div class="sidebar">
-        <NavMenu />
-    </div>
+    <NavMenu />
 
-    <main>
-        <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
-        </div>
-
-        <article class="content px-4">
+    <main class="content">
+        <article>
             @Body
         </article>
     </main>
+
+    <footer class="site-footer">
+        <span class="mono">&gt; CodeRoyale · a multiplayer coding quiz</span>
+    </footer>
 </div>
 
 <div id="blazor-error-ui" data-nosnippet>

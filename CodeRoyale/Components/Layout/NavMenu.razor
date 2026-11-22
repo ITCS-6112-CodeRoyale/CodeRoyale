@@ -2,73 +2,40 @@
 
 @inject NavigationManager NavigationManager
 
-<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">CodeRoyale</a>
-    </div>
-</div>
+<header class="topbar">
+    <div class="topbar-inner">
+        <a class="brand" href="">
+            <span class="brand-name">Code<span class="accent">Royale</span></span>
+        </a>
 
-<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+        <input type="checkbox" id="nav-toggle" class="nav-toggle" title="Navigation menu" />
+        <label for="nav-toggle" class="nav-toggle-btn" aria-label="Toggle navigation">
+            <span></span><span></span><span></span>
+        </label>
 
-<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
-    <nav class="nav flex-column">
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
-            </NavLink>
-        </div>
+        <nav class="nav-links" onclick="document.getElementById('nav-toggle').checked = false">
+            <NavLink class="nav-pill" href="" Match="NavLinkMatch.All">Home</NavLink>
+            <NavLink class="nav-pill" href="join">Join a game</NavLink>
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="join">
-                <span class="bi bi-plug-fill-nav-menu" aria-hidden="true"></span> Join a game
-            </NavLink>
-        </div>
-
-        <AuthorizeView>
-            <Authorized>
-                
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="host">
-                        <span class="bi bi-server-nav-menu" aria-hidden="true"></span> Host a game
-                    </NavLink>
-                </div>
-                
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="questions">
-                        <span class="bi bi-card-heading-nav-menu" aria-hidden="true"></span> Question Sets
-                    </NavLink>
-                </div>
-
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="Account/Manage">
-                        <span class="bi bi-person-fill-nav-menu" aria-hidden="true"></span> @context.User.Identity?.Name
-                    </NavLink>
-                </div>
-                <div class="nav-item px-3">
-                    <form action="Account/Logout" method="post">
+            <AuthorizeView>
+                <Authorized>
+                    <NavLink class="nav-pill" href="host">Host a game</NavLink>
+                    <NavLink class="nav-pill" href="questions">Question Sets</NavLink>
+                    <NavLink class="nav-pill nav-user" href="Account/Manage">@context.User.Identity?.Name</NavLink>
+                    <form action="Account/Logout" method="post" class="nav-form">
                         <AntiforgeryToken />
                         <input type="hidden" name="ReturnUrl" value="@currentUrl" />
-                        <button type="submit" class="nav-link">
-                            <span class="bi bi-arrow-bar-left-nav-menu" aria-hidden="true"></span> Logout
-                        </button>
+                        <button type="submit" class="nav-pill nav-button">Logout</button>
                     </form>
-                </div>
-            </Authorized>
-            <NotAuthorized>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="Account/Register">
-                        <span class="bi bi-person-nav-menu" aria-hidden="true"></span> Register
-                    </NavLink>
-                </div>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="Account/Login">
-                        <span class="bi bi-person-badge-nav-menu" aria-hidden="true"></span> Login
-                    </NavLink>
-                </div>
-            </NotAuthorized>
-        </AuthorizeView>
-    </nav>
-</div>
+                </Authorized>
+                <NotAuthorized>
+                    <NavLink class="nav-pill" href="Account/Register">Register</NavLink>
+                    <NavLink class="nav-pill nav-cta" href="Account/Login">Log in</NavLink>
+                </NotAuthorized>
+            </AuthorizeView>
+        </nav>
+    </div>
+</header>
 
 @code {
     private string? currentUrl;
@@ -90,4 +57,3 @@
         NavigationManager.LocationChanged -= OnLocationChanged;
     }
 }
-
