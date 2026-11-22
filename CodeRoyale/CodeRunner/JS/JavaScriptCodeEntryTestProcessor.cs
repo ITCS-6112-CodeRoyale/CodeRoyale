@@ -160,10 +160,8 @@ public sealed class JavaScriptCodeEntryTestProcessor : CodeEntryTestProcessor
             catch (JavaScriptException ex)
             {
                 state = engine.GetValue(stateVar).AsObject();
-
                 string userCodeError = ex.GetJavaScriptErrorString(ResultLimits.Conservative);
-                _logger.LogWarning(ex, "Error thrown by JS at an unexpected location.");
-                return new CodeEntryTestResult(AnswerTime, [], [], [], [], userCodeError);
+                return new CodeEntryTestResult(AnswerTime, [ ], [ ], [ ], [ ], userCodeError);
             }
             catch (Exception ex)
             {
@@ -326,7 +324,6 @@ public sealed class JavaScriptCodeEntryTestProcessor : CodeEntryTestProcessor
     private string GetCodeWithoutLiterals()
     {
         return JavaScriptPreprocessingUtils.RemoveUserStringsFromCode(Code, false, true);
-
     }
 
     private string GetCodeWithoutCommentsAndLiterals()
