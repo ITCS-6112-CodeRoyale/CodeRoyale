@@ -1,6 +1,9 @@
+@using CodeRoyale.Data
+@using CodeRoyale.Identity
 @implements IDisposable
 
 @inject NavigationManager NavigationManager
+@inject ApplicationUserProvider UserProvider
 
 <header class="topbar">
     <div class="topbar-inner">
@@ -21,7 +24,8 @@
                 <Authorized>
                     <NavLink class="nav-pill" href="host">Host a game</NavLink>
                     <NavLink class="nav-pill" href="questions">Question Sets</NavLink>
-                    <NavLink class="nav-pill nav-user" href="Account/Manage">@context.User.Identity?.Name</NavLink>
+                    <NavLink class="nav-pill" href="games">Games</NavLink>
+                    <NavLink class="nav-pill nav-user" href="Account/Manage">Account</NavLink>
                     <form action="Account/Logout" method="post" class="nav-form">
                         <AntiforgeryToken />
                         <input type="hidden" name="ReturnUrl" value="@currentUrl" />

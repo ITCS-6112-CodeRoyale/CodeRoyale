@@ -112,7 +112,7 @@
         background: var(--text-muted);
     }
 
-@media (max-width: 860px) {
+@media (max-width: 810px) {
     .nav-toggle-btn { display: flex; }
 
     .nav-links {

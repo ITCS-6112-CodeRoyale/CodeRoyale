@@ -1,0 +1,112 @@
+﻿@page "/game/{Game}"
+
+@using System.Globalization
+@using CodeRoyale.Data
+@using CodeRoyale.Data.Games
+@using CodeRoyale.Data.Questions
+@using CodeRoyale.Identity
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.EntityFrameworkCore
+
+@inject ApplicationDbContext DbContext
+@inject ApplicationUserProvider UserProvider
+
+@attribute [Authorize]
+
+@if (_game == null || _set == null || _user == null)
+{
+    <PageTitle>Game History | CodeRoyale</PageTitle>
+    <h1>Game History</h1>
+
+    <p>Game not found: @Game</p>
+    return;
+}
+
+<PageTitle>@_set.Name | CodeRoyale</PageTitle>
+
+<h1>@_set.Name</h1>
+
+@if (!string.IsNullOrEmpty(_set.Description))
+{
+    <p>@_set.Description</p>
+}
+
+<p>You came in <strong>@Data.Games.Game.GetPlaceNumberWithSuffix(_place)</strong> place.</p>
+
+<h2>Players</h2>
+
+<ul class="list-group mb-3">
+    @foreach (GamePlayer player in _game.Players.OrderByDescending(x => x.Score))
+    {
+        @if (player.UserId == _user.Id)
+        {
+            <li class="list-group-item">
+                <strong>
+                    @player.Name &mdash; @(player.Score.ToString("F0")) pts
+                </strong>
+            </li>
+        }
+        else
+        {
+            <li class="list-group-item">
+                @player.Name &mdash; @(player.Score.ToString("F0")) pts
+            </li>
+        }
+    }
+</ul>
+
+<h2>Questions</h2>
+
+<ul class="list-group list-group-flush">
+    @foreach (Question question in _set.Questions)
+    {
+        <li class="list-group-item">@(new MarkupString(question.Text))</li>
+    }
+</ul>
+
+@code {
+
+    [Parameter]
+    public required string Game { get; set; }
+
+    private Game? _game;
+    private QuestionSet? _set;
+    private int _place;
+    private ApplicationUser? _user;
+
+    /// <inheritdoc />
+    protected override async Task OnInitializedAsync()
+    {
+        ApplicationUser? user = await UserProvider.GetLoggedInUserAsync();
+        if (user == null || !int.TryParse(Game, NumberStyles.None, CultureInfo.InvariantCulture, out int gameId))
+        {
+            return;
+        }
+
+        _user = user;
+        string id = user.Id;
+        _game = await DbContext.Games
+            .Include(x => x.Players).ThenInclude(x => x.Results)
+            .Include(x => x.QuestionSet)
+            .FirstOrDefaultAsync(x => x.Id == gameId && x.CompletedTime != null && x.Players.Any(y => y.UserId == id));
+
+        if (_game == null)
+        {
+            return;
+        }
+
+        int place = 1;
+        foreach (GamePlayer pl in _game.Players.OrderByDescending(x => x.Score))
+        {
+            if (pl.UserId == _user.Id)
+            {
+                _place = place;
+                break;
+            }
+
+            ++place;
+        }
+        
+        _set = await Question.IncludeAll(DbContext.QuestionSets.Where(x => x.Id == _game.QuestionSet.Id)).FirstOrDefaultAsync();
+    }
+}

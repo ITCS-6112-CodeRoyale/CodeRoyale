@@ -28,4 +28,37 @@ public class Game
     public IList<GamePlayer> Players { get; set; }
 
 #nullable restore
+
+
+    internal static string GetPlaceNumberWithSuffix(int num)
+    {
+        if (num < 0)
+            return num.ToString();
+
+        if (num <= 10)
+        {
+            return num switch
+            {
+                1 => "1st",
+                2 => "2nd",
+                3 => "3rd",
+                _ => num + "th"
+            };
+        }
+
+        int tens = num % 100;
+        if (tens is > 10 and < 20)
+        {
+            return num + "th";
+        }
+
+        int ones = tens % 10;
+        return ones switch
+        {
+            1 => num + "st",
+            2 => num + "nd",
+            3 => num + "rd",
+            _ => num + "th"
+        };
+    }
 }

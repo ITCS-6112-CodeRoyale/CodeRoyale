@@ -1,0 +1,92 @@
+﻿@page "/games"
+
+@using CodeRoyale.Data
+@using CodeRoyale.Data.Games
+@using CodeRoyale.Identity
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.EntityFrameworkCore
+
+@inject ApplicationDbContext DbContext
+@inject ApplicationUserProvider UserProvider
+@inject NavigationManager NavigationManager
+
+@attribute [Authorize]
+
+<PageTitle>Game History | CodeRoyale</PageTitle>
+
+<h1>Game History</h1>
+
+<p class="mb-5">You've played or hosted the following games:</p>
+
+@if (_games == null || _user == null)
+{
+    return;
+}
+
+<ul class="d-flex flex-wrap">
+    
+    @for (int g = 0; g < _games.Count; ++g)
+    {
+        Game game = _games[g];
+
+        <div class="card m-2" style="width: 320px">
+            <div class="card-body d-flex flex-column">
+                <h2 class="card-title">@game.QuestionSet.Name</h2>
+                <p class="card-text flex-grow-1">@game.QuestionSet.Description</p>
+                <p class="card-text"><strong>@Game.GetPlaceNumberWithSuffix(_place![g])</strong> place</p>
+                <p class="card-text"><em>@((game.CompletedTime ?? game.StartedTime).ToLocalTime().ToString("f"))</em></p>
+                
+                <button class="btn btn-outline-primary" @onclick="() => OnButtonClicked(game)">View Questions</button>
+
+            </div>
+        </div>
+    }
+
+</ul>
+
+@code {
+
+    private List<Game>? _games;
+    private int[]? _place;
+    private ApplicationUser? _user;
+
+    /// <inheritdoc />
+    protected override async Task OnInitializedAsync()
+    {
+        ApplicationUser? user = await UserProvider.GetLoggedInUserAsync();
+        if (user == null)
+        {
+            return;
+        }
+
+        _user = user;
+        string id = user.Id;
+        _games = await DbContext.Games
+            .Where(x => x.CompletedTime != null && x.Players.Any(y => y.UserId == id))
+            .Include(x => x.QuestionSet)
+            .Include(x => x.Players)
+            .ToListAsync();
+
+        _place = new int[_games.Count];
+        for (int i = 0; i < _games.Count; i++)
+        {
+            Game game = _games[i];
+            int place = 1;
+            foreach (GamePlayer pl in game.Players.OrderByDescending(x => x.Score))
+            {
+                if (pl.UserId == _user.Id)
+                {
+                    _place[i] = place;
+                    break;
+                }
+
+                ++place;
+            }
+        }
+    }
+
+    private void OnButtonClicked(Game game)
+    {
+        NavigationManager.NavigateTo($"/game/{game.Id}");
+    }
+}

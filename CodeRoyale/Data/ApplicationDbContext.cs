@@ -9,6 +9,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 {
     public DbSet<QuestionSet> QuestionSets => Set<QuestionSet>();
     public DbSet<CodeLanguage> Languages => Set<CodeLanguage>();
+    public DbSet<Game> Games => Set<Game>();
 
     protected override void OnModelCreating(ModelBuilder bldr)
     {
