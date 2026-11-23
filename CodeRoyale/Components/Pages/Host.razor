@@ -65,7 +65,7 @@
     {
         _user = await UserProvider.GetLoggedInUserAsync();
 
-        _sets = await Question.IncludeAll(DbContext.QuestionSets.Where(s => s.User == null || s.User == _user))
+        _sets = await Question.IncludeAll(DbContext.QuestionSets.Where(s => (s.User == null || s.User == _user) && !s.IsDeleted))
             .ToListAsync();
     }
 

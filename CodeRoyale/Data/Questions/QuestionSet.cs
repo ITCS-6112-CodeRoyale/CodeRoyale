@@ -35,6 +35,8 @@ public sealed class QuestionSet
     [StringLength(MaxDescLength)]
     public string? Description { get; set; }
 
+    public bool IsDeleted { get; set; }
+
     /* Game Options */
     public required double SecondsPerQuestion { get; set; }
 }

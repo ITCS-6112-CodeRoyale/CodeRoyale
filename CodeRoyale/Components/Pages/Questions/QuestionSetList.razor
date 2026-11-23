@@ -1,4 +1,7 @@
 ﻿@page "/questions"
+@using System.Data.Common
+@using System.Diagnostics
+@using MySqlConnector
 
 @inject ApplicationUserProvider UserProvider
 @inject ApplicationDbContext DbContext
@@ -72,13 +75,34 @@
     private async Task DeleteSet(QuestionSet set)
     {
         DbContext.QuestionSets.Remove(set);
-        await DbContext.SaveChangesAsync();
+        bool needsDelete = false;
+        try
+        {
+            await DbContext.SaveChangesAsync();
+        }
+        catch (DbException)
+        {
+            needsDelete = true;
+        }
+        catch (DbUpdateException)
+        {
+            needsDelete = true;
+        }
+
+        if (needsDelete)
+        {
+            // there already exists a game record using this set, so just mark it as deleted instead
+            set.IsDeleted = true;
+            DbContext.Entry(set).State = EntityState.Modified;
+            await DbContext.SaveChangesAsync();
+        }
+
         await UpdateSets();
     }
 
     private async Task UpdateSets()
     {
-        _sets = await DbContext.QuestionSets.Where(s => s.User == null || s.User == _user)
+        _sets = await DbContext.QuestionSets.Where(s => (s.User == null || s.User == _user) && !s.IsDeleted)
             .OrderBy(s => s.User == null)
             .ToListAsync();
     }

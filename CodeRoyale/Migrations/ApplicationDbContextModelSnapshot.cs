@@ -379,6 +379,9 @@ namespace CodeRoyale.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("varchar(256)");
 
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)");
+
                     b.Property<int>("LanguageId")
                         .HasColumnType("int");
 

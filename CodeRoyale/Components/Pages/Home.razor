@@ -79,7 +79,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        _builtInSets = await DbContext.QuestionSets.Where(x => x.User == null)
+        _builtInSets = await DbContext.QuestionSets.Where(x => x.User == null && !x.IsDeleted)
             .Include(x => x.Questions)
             .ToListAsync();
     }
