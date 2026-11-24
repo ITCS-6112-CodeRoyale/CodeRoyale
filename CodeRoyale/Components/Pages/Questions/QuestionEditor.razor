@@ -8,7 +8,7 @@
 
     <div class="card-body">
         
-        <h3>Details</h3>
+        <h3>Question @(_question.Index + 1)</h3>
 
         <div>
 
@@ -75,7 +75,7 @@
 
                     @if (mcq.Answers.Count < byte.MaxValue)
                     {
-                        <button class="btn btn-primary mb-3 mt-3" @onclick="OnAddMCQAnswerClicked">Add Answer</button>
+                        <button class="btn btn-primary mb-3 mt-2" @onclick="OnAddMCQAnswerClicked">Add Answer</button>
                     }
 
                     break;
@@ -94,9 +94,9 @@
                     
                     @if (ceq.CorrectTests.Count < byte.MaxValue)
                     {
-                        <div class="row mt-3">
-                            <button class="btn btn-primary mb-3 me-1" @onclick="OnAddCEQCorrectUnitTestClicked">Add Unit Test</button>
-                            <button class="btn btn-primary mb-3 ms-1" @onclick="OnAddCEQCorrectRegExTestClicked">Add RegEx Test</button>
+                        <div class="d-flex-inline mt-2">
+                            <button class="btn btn-secondary mb-3 me-1" @onclick="OnAddCEQCorrectUnitTestClicked">Add Unit Test</button>
+                            <button class="btn btn-secondary mb-3 ms-1" @onclick="OnAddCEQCorrectRegExTestClicked">Add RegEx Test</button>
                         </div>
                     }
 
@@ -107,9 +107,9 @@
                     
                     @if (ceq.IncorrectTests.Count < byte.MaxValue)
                     {
-                        <div class="row mt-3">
-                            <button class="btn btn-primary mb-3 me-1" @onclick="OnAddCEQIncorrectUnitTestClicked">Add Unit Test</button>
-                            <button class="btn btn-primary mb-3 ms-1" @onclick="OnAddCEQIncorrectRegExTestClicked">Add RegEx Test</button>
+                        <div class="d-flex-inline mt-2">
+                            <button class="btn btn-secondary mb-3 me-1" @onclick="OnAddCEQIncorrectUnitTestClicked">Add Unit Test</button>
+                            <button class="btn btn-secondary mb-3 ms-1" @onclick="OnAddCEQIncorrectRegExTestClicked">Add RegEx Test</button>
                         </div>
                     }
 
@@ -126,7 +126,7 @@
 
                     @if (beq.Answers.Count < byte.MaxValue)
                     {
-                        <button class="btn btn-primary mb-3 mt-3" @onclick="OnAddBEQAnswerClicked">Add Answer</button>
+                        <button class="btn btn-primary mb-3 mt-2" @onclick="OnAddBEQAnswerClicked">Add Answer</button>
                     }
 
                     break;

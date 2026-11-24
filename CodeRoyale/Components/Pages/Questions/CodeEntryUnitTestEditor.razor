@@ -1,4 +1,4 @@
-﻿<div class="card">
+﻿<div class="card mb-1">
     
     <div class="card-body">
         
@@ -18,14 +18,14 @@
          *@
         <div class="form-floating mb-3" title="Code inserted above the user-submitted code.">
 
-            <textarea id="@_preTestId" value="@Test.PreTest" @onchange="OnPreTestChanged" rows="8" cols="48" maxlength="@CodeEntryUnitTest.MaxPreTestLength" class="form-control"></textarea>
+            <textarea id="@_preTestId" value="@Test.PreTest" @onchange="OnPreTestChanged" rows="8" cols="48" maxlength="@CodeEntryUnitTest.MaxPreTestLength" class="form-control font-monospace"></textarea>
             <label for="@_preTestId" class="form-label">Pre-Test</label>
 
         </div>
         
         <div class="form-floating mb-3" title="Code inserted below the user-submitted code.">
             
-            <textarea id="@_postTestId" value="@Test.PostTest" @onchange="OnPostTestChanged" rows="12" cols="48" maxlength="@CodeEntryUnitTest.MaxPostTestLength" class="form-control"></textarea>
+            <textarea id="@_postTestId" value="@Test.PostTest" @onchange="OnPostTestChanged" rows="12" cols="48" maxlength="@CodeEntryUnitTest.MaxPostTestLength" class="form-control font-monospace"></textarea>
             <label for="@_postTestId" class="form-label">Post-Test</label>
 
         </div>

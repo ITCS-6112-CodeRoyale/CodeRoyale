@@ -3,16 +3,16 @@ using CodeRoyale.Data.Questions;
 
 namespace CodeRoyale.CodeRunner;
 
-public class CodeEntryTestService
+public class CodeEntryTestProcessorFactory
 {
-    private readonly ILogger<CodeEntryTestService> _logger;
+    private readonly ILogger<CodeEntryTestProcessorFactory> _logger;
 
-    public CodeEntryTestService(ILogger<CodeEntryTestService> logger)
+    public CodeEntryTestProcessorFactory(ILogger<CodeEntryTestProcessorFactory> logger)
     {
         _logger = logger;
     }
 
-    public CodeEntryTestProcessor CreateProcessor(DateTime answerTime, CodeEntryQuestion question, CodeLanguage language, string code)
+    public virtual CodeEntryTestProcessor CreateProcessor(DateTime answerTime, CodeEntryQuestion question, CodeLanguage language, string code)
     {
         return language.LanguageCode switch
         {

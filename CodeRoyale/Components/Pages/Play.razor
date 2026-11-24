@@ -12,7 +12,7 @@
 
 @implements IDisposable
 @inject GameService Games
-@inject CodeEntryTestService CodeTestService
+@inject CodeEntryTestProcessorFactory CodeTestProcessorFactory
 @inject NavigationManager Nav
 @inject ApplicationUserProvider UserProvider
 @inject ILogger<Play> Logger
@@ -594,7 +594,7 @@ else
         {
             try
             {
-                CodeEntryTestProcessor processor = CodeTestService.CreateProcessor(answerTime, ceq, game!.Deck.Language, code);
+                CodeEntryTestProcessor processor = CodeTestProcessorFactory.CreateProcessor(answerTime, ceq, game!.Deck.Language, code);
                 _codeEntryResult = await processor.ProcessAsync(game.CancellationToken);
                 actionError = Games.SubmitCodeEntryAnswer(game.JoinCode, me.IntlGameId!, ceq, code, _codeEntryResult);
                 await InvokeAsync(StateHasChanged);
