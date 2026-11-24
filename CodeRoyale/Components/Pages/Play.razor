@@ -102,10 +102,10 @@ else
     {
         <div class="d-flex justify-content-between align-items-center mb-2">
             <span class="text-muted">Question @game.QuestionNumber of @game.QuestionCount</span>
-            <span class="fs-4 fw-bold">@SecondsLeft s</span>
+            <span class="fs-4 fw-bold @(SecondsLeft <= 5 ? "text-danger" : "")">@SecondsLeft s</span>
         </div>
         <div class="progress mb-4" style="height: 0.5rem;">
-            <div class="progress-bar @(TimePercent < 30 ? "bg-danger" : "bg-success")"
+            <div class="progress-bar @(TimePercent < 25 ? "bg-danger" : TimePercent < 50 ? "bg-warning" : "bg-success")"
                  style="width: @TimePercent%;"></div>
         </div>
         
@@ -129,7 +129,7 @@ else
                     <ul class="list-group" style="max-width: 44rem;">
                         @foreach (MultipleChoiceAnswer answer in GetShuffledAnswers(mcq))
                         {
-                            <li class="list-group-item @(MyAnswerIndex == answer.Index ? "active" : "")">@(new MarkupString(answer.Text))</li>
+                            <li class="list-group-item opt-@answer.Index @(MyAnswerIndex == answer.Id ? "active" : "opacity-50")">@(new MarkupString(answer.Text))</li>
                         }
                     </ul>
                     break;
@@ -154,7 +154,7 @@ else
             {
                 case MultipleChoiceQuestion mcq:
             
-                    <div class="d-grid gap-2" style="max-width: 44rem;">
+                    <div class="d-grid gap-2 answer-grid" style="max-width: 44rem;">
                         @foreach (MultipleChoiceAnswer answer in GetShuffledAnswers(mcq))
                         {
                             int idx = answer.Index;
@@ -231,14 +231,14 @@ else
                 <ul class="list-group mb-4" style="max-width: 44rem;">
                     @foreach (MultipleChoiceAnswer answer in mcq.Answers)
                     {
-                        <li class="list-group-item d-flex justify-content-between align-items-center @(answer.IsCorrect ? "list-group-item-success" : "")">
+                        <li class="list-group-item d-flex justify-content-between align-items-center opt-@answer.Index @(answer.IsCorrect ? "list-group-item-success" : MyAnswerIndex == answer.Id ? "list-group-item-danger" : "opacity-50")">
                             <span>@(new MarkupString(answer.Text))</span>
                             <span>
                                 @if (answer.IsCorrect)
                                 {
                                     <span class="badge bg-success">correct</span>
                                 }
-                                @if (MyAnswerIndex == answer.Index)
+                                @if (MyAnswerIndex == answer.Id)
                                 {
                                     <span class="badge bg-primary">your answer</span>
                                 }
@@ -670,10 +670,10 @@ else
     /// <summary>Bootstrap colour per answer index, so the options read as distinct choices.</summary>
     private static string OptionClass(int index) => index switch
     {
-        0 => "btn-primary",
-        1 => "btn-success",
-        2 => "btn-warning",
-        3 => "btn-danger",
+        0 => "btn-opt opt-0",
+        1 => "btn-opt opt-1",
+        2 => "btn-opt opt-2",
+        3 => "btn-opt opt-3",
         _ => "btn-secondary"
     };
 

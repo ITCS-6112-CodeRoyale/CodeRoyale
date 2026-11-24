@@ -224,3 +224,26 @@ a, .btn-link { color: var(--accent); }
 article h2:not([class]) { font-size: 1.2rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.75rem; }
 article h3:not([class]) { font-size: 1.05rem; font-weight: 600; color: var(--text-muted); }
 .checkbox .form-label { text-transform: none; letter-spacing: 0; font-size: inherit; color: var(--text); }
+
+/* ---------- Play: answer options ---------- */
+.opt-0 { --opt: #6b8fc7; }  /* blue   */
+.opt-1 { --opt: #a07cc4; }  /* violet */
+.opt-2 { --opt: #c8a35e; }  /* amber  */
+.opt-3 { --opt: #4fa3a8; }  /* cyan   */
+
+.btn-opt {
+    color: var(--text);
+    background: color-mix(in srgb, var(--opt) 16%, var(--surface));
+    border: 1px solid color-mix(in srgb, var(--opt) 45%, transparent);
+    border-left: 4px solid var(--opt);
+}
+.btn-opt:hover, .btn-opt:focus-visible, .btn-opt:active {
+    color: var(--text);
+    background: color-mix(in srgb, var(--opt) 26%, var(--surface));
+    border-color: var(--opt);
+}
+.list-group-item[class*="opt-"] { border-left: 4px solid var(--opt); }
+
+@media (min-width: 768px) {
+    .answer-grid { grid-template-columns: 1fr 1fr; }
+}
