@@ -21,7 +21,7 @@ While there are many ways to host an ASP.NET web application, we recommend hosti
 2. Clone the source code using **git**.<br>
    `git clone https://github.com/ITCS-6112-CodeRoyale/CodeRoyale.git`
 3. Publish the project for the target operating system.<br>
-   `dotnet publish CodeRoyale –c Release \-r linux-x64`
+   `dotnet publish CodeRoyale –c Release -r linux-x64`
 4. If you’re building it on a different device, use a tool such as scp or FileZilla to copy the resulting folder to your server.  
 5. Create a user to run coderoyale on.<br>
    `sudo adduser`<br>
