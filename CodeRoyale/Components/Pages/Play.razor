@@ -170,7 +170,17 @@ else
                     <div class="container mb-2">
                         
                         <label for="ceq_code" class="form-label">Code</label>
-                        <textarea id="ceq_code" class="form-control font-monospace" rows="16" value="@Code" @onchange="value => Code = value.Value?.ToString()"></textarea>
+                        <textarea id="ceq_code" class="form-control font-monospace" rows="16" value="@Code" @onchange="value => Code = value.Value?.ToString()"
+                            onkeydown="
+                                if (event.key == 'Tab')
+                                {
+                                    event.preventDefault();
+                                    var start = this.selectionStart;
+                                    var end = this.selectionEnd;
+                                    this.value = this.value.substring(0, start) + '    ' + this.value.substring(end);
+                                    this.selectionStart = this.selectionEnd = start + 4;
+                                }
+                            "></textarea>
 
                     </div>
 
@@ -525,19 +535,16 @@ else
             return;
 
         _currentQuestion = game.CurrentQuestion;
-        if (string.IsNullOrEmpty(Code))
+        if (_currentQuestion is CodeEntryQuestion ceq)
         {
-            if (game!.CurrentQuestion is CodeEntryQuestion ceq)
-            {
-                Code ??= ceq.StartingText;
-            }
-            else
-            {
-                Code = null;
-            }
+            Code = ceq.StartingText;
+        }
+        else
+        {
+            Code = null;
         }
 
-        if (game!.CurrentQuestion is BlankEntryQuestion beq)
+        if (_currentQuestion is BlankEntryQuestion beq)
         {
             _blankAnswers = new string[beq.Answers.Count];
         }
