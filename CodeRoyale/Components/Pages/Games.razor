@@ -65,6 +65,7 @@
             .Where(x => x.CompletedTime != null && x.Players.Any(y => y.UserId == id))
             .Include(x => x.QuestionSet)
             .Include(x => x.Players)
+            .OrderByDescending(x => x.CompletedTime)
             .ToListAsync();
 
         _place = new int[_games.Count];
